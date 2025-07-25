@@ -1,0 +1,158 @@
+import tkinter as tk
+import re
+
+def process_orders(input_text, separator_entry, output_text):
+    orders = input_text.get("1.0", tk.END)
+    orders = "".join(orders.split()).replace(",", "")
+
+    separator = separator_entry.get()
+    if separator == "":
+        separator = ","
+
+    count = 0
+    new_orders = ""
+    for char in orders:
+        if count < 8:
+            new_orders += char
+            count += 1
+        else:
+            new_orders += f"{separator}{char}"
+            count = 1
+
+    if not new_orders:
+        new_orders = "Nenhuma ordem inserida."
+
+    output_text.delete("1.0", tk.END)
+    output_text.insert(tk.END, new_orders)
+
+
+def process_text(ptext_input, separator_entry, space_choice, output_text):
+    text = ptext_input.get("1.0", tk.END).strip()
+    lines = text.split("\n")
+
+    separator = separator_entry.get()
+    if separator == "":
+        separator = ", "
+
+    new_text = ""
+    last_is_space = False  # used to check for multiple blank spaces
+
+    for line in lines:
+        line = line.strip()
+        for char in line:
+            if char == " " and not space_choice:
+                if not last_is_space:
+                    new_text += separator
+                    last_is_space = True
+            else:
+                new_text += char
+                last_is_space = False
+
+        new_text += separator
+
+    if not new_text.strip():
+        new_text = "Nenhum texto inserido."
+    elif new_text.endswith(separator):
+        new_text = new_text[: -len(separator)]
+    output_text.delete("1.0", tk.END)
+    output_text.insert(tk.END, new_text)
+
+
+def increase_time(time, amount):  # will be used to create the output_text in work_logs
+    hours, minutes = map(int, time.split(":"))
+    minutes += amount
+
+    while minutes >= 60:
+        hours += 1
+        minutes -= 60
+
+    return f"{hours:02d}:{minutes:02d}"
+
+def time_str_to_decimal(time_str):
+    hours, minutes = map(int, time_str.split(":")) #Will be used to calculate interval time weight
+    return hours + minutes / 60                 
+
+def work_logs(service_order, interval, date, starting_time, ending_time):
+    interval_quantity = 0
+    intervals = None
+    real_hours = 0
+    real_minutes = 0
+    available_time = 0
+    output_text = ""
+
+    if not service_order:
+        return "Por favor, insira uma ordem de serviço"
+    service_order = service_order.strip()
+
+    try:
+        start, end = map(int, interval.split("-"))
+        interval_quantity = abs(end - start) + 1
+    except ValueError:
+        try:
+            intervals = [
+                line.strip()
+                for line in interval.strip().split("\n")
+                if line.strip()
+            ]
+        except ValueError:
+            return "Por favor, insira um intervalo válido"
+
+    try:
+        day, month, year = map(int, date.split("/"))
+    except ValueError:
+        return "Por favor, insira uma data válida."
+
+    try:
+        starting_hours, starting_minutes = map(int, starting_time.split(":"))
+        ending_hours, ending_minutes = map(int, ending_time.split(":"))
+    except ValueError:
+        return "Por favor, insira um horário válido."
+    
+    real_hours = ending_hours - starting_hours
+    real_minutes = ending_minutes - starting_minutes
+
+    if intervals:
+        available_time = (real_hours * 60 + real_minutes) / len(intervals)
+        for idx, available_interval in enumerate(intervals):
+            start_time = increase_time(starting_time, int(available_time * idx))
+            end_time = increase_time(starting_time, int(available_time * (idx + 1)))
+
+            total_hours = time_str_to_decimal(end_time) - time_str_to_decimal(start_time)
+            formatted_total_hours = f"{total_hours:.2f}".replace(".", ",")
+
+            output_text += f"{service_order}\t\t\t{available_interval}\t\t\t\t\t\t\t\t\t\t{date}\t{start_time}\t{date}\t{end_time}\t{formatted_total_hours}\n"
+    else:
+        available_time = (real_hours * 60 + real_minutes) / interval_quantity
+        for number in range(start, end + 1):
+            start_time = increase_time(starting_time, int(available_time * (number - start)))
+            end_time = increase_time(starting_time, int(available_time * (number - start + 1)))
+
+            total_hours = time_str_to_decimal(end_time) - time_str_to_decimal(start_time)
+            formatted_total_hours = f"{total_hours:.2f}".replace(".", ",")
+
+            output_text += f"{service_order}\t\t\t{number}\t\t\t\t\t\t\t\t\t\t{date}\t{start_time}\t{date}\t{end_time}\t{formatted_total_hours}\n"
+ 
+    return output_text
+
+def search_orders(search_input, search_output):
+    text = search_input.get("1.0", tk.END).replace("\n", "")
+    pattern = r"\b621\d{5}\b"
+    found = re.findall(pattern, text)
+
+    search_output.delete("1.0", tk.END)
+
+    if found:
+        result = " ".join(found)
+        search_output.insert(tk.END, result)
+    else:
+        search_output.insert(tk.END, "Nenhuma ordem encontrada.")
+
+
+def copy_text(widget, window):
+    text = widget.get("1.0", tk.END).strip()
+    if text:
+        window.clipboard_clear()
+        window.clipboard_append(text)
+        window.update()
+    else:
+        return "Nada a ser copiado"
