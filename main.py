@@ -24,6 +24,7 @@ class App:
         self.processText_frame = self.create_processText_frame()
         self.searchOrders_frame = self.create_searchOrders_frame()
         self.workLogs_frame = self.create_workLogs_frame()
+        self.updateLogs_frame = self.create_updateLogs_frame()
 
         self.show_frame(self.menu_frame)
 
@@ -70,7 +71,7 @@ class App:
 
     def clear_fields(
         self, *widgets
-    ):  # Used to clear all the input and output fields when the user clicks on the menu button
+    ):  # Used to clear all the input fields when the user clicks on the menu button
         for widget in widgets:
             if isinstance(widget, tk.Entry) or isinstance(widget, ttk.Entry):
                 widget.delete(0, tk.END)
@@ -91,14 +92,14 @@ class App:
             text="Unir ordens",
             style="Grande.TButton",
             command=lambda: self.show_frame(self.processOrders_frame),
-        ).pack(pady=20, ipadx=30, ipady=10)
+        ).pack(pady=20, ipadx=100, ipady=10)
 
         ttk.Button(
             frame,
             text="Unir texto",
             style="Grande.TButton",
             command=lambda: self.show_frame(self.processText_frame),
-        ).pack(pady=20, ipadx=30, ipady=10)
+        ).pack(pady=20, ipadx=100, ipady=10)
 
         ttk.Button(
             frame,
@@ -112,7 +113,16 @@ class App:
             text="Procurar ordens",
             style="Grande.TButton",
             command=lambda: self.show_frame(self.searchOrders_frame),
-        ).pack(pady=20, ipadx=30, ipady=10)
+        ).pack(pady=20, ipadx=92, ipady=10)
+
+        tk.Button(
+            frame,
+            text="Notas de atualização",
+            bg="#800080",  # Fundo roxo
+            fg="white",    # Texto branco
+            font=("Segoe UI", 10, "bold"),
+            command=lambda: self.show_frame(self.updateLogs_frame)
+            ).pack(pady=20, ipadx=30, ipady=10)
 
         return frame
 
@@ -428,6 +438,54 @@ class App:
             text="⬅ Voltar ao menu",
             command=lambda: (
                 self.clear_fields(self.search_input),
+                self.show_frame(self.menu_frame),
+            ),
+        ).pack(pady=10)
+
+        return frame
+
+    def create_updateLogs_frame(self):
+        frame = tk.Frame(self.root, bg="#2b2b2b")
+        frame.place(relwidth=1, relheight=1)
+
+        tk.Label(
+            frame, 
+            text="Essas são as mudanças que ocorreram desde a última versão: ",
+            bg="#2b2b2b",
+            fg="#a20290",
+            font=("Segoe UI", 15, "bold"),
+            ).pack(padx=10, pady=50)
+        
+
+        changelog_text = """
+- 🛠️ Adicionado suporte à datas em formatação alternativa (sem as barras "/").
+
+- 🛠️ Adicionado suporte à horários em formatação alternativa (sem os dois pontos ":").
+
+- 🆕 Melhorias visuais implementadas.
+
+- 🆕 Seção "Notas de atualização" implementada.
+
+- 🆕 O programa agora possui um novo icone!
+
+- 🚀 Correções de pequenos erros e melhorias de qualidade de vida.
+
+        """
+
+        texto_exibicao = tk.Message(
+        frame,
+        text=changelog_text,
+        width=800,
+        bg="#2b2b2b",
+        fg="#a20290",
+        font=("Consolas", 15),
+        )
+        texto_exibicao.pack(padx=20, pady=40)
+
+        ttk.Button(
+            frame,
+            text="⬅ Voltar ao menu",
+            command=lambda: (
                 self.show_frame(self.menu_frame),
             ),
         ).pack(pady=10)

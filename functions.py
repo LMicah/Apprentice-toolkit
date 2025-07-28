@@ -1,4 +1,5 @@
 import tkinter as tk
+from tkinter import messagebox
 import re
 
 def process_orders(input_text, separator_entry, output_text):
@@ -20,7 +21,7 @@ def process_orders(input_text, separator_entry, output_text):
             count = 1
 
     if not new_orders:
-        new_orders = "Nenhuma ordem inserida."
+        messagebox.showwarning("Atenção", "Não existe nenhuma ordem a ser processada")
 
     output_text.delete("1.0", tk.END)
     output_text.insert(tk.END, new_orders)
@@ -50,26 +51,27 @@ def process_text(ptext_input, separator_entry, space_choice, output_text):
 
         new_text += separator
 
-    if not new_text.strip():
-        new_text = "Nenhum texto inserido."
+    if not text:
+        messagebox.showwarning("Atenção", "Nenhum texto inserido")
     elif new_text.endswith(separator):
         new_text = new_text[: -len(separator)]
     output_text.delete("1.0", tk.END)
     output_text.insert(tk.END, new_text)
 
 
-def increase_time(time, amount):  # will be used to create the output_text in work_logs
-    hours, minutes = map(int, time.split(":"))
-    minutes += amount
+def increase_time(time, amount):  # will be used to create the output_text in work_logs 
+    hours = int(time[:2]) #first two characters (dont touch this if its passing the regex the convertion will be fine)
+    minutes = int(time[-2:]) #last two chracters (same as above)
+    minutes += amount 
 
     while minutes >= 60:
         hours += 1
         minutes -= 60
 
-    return f"{hours:02d}:{minutes:02d}"
+    return f"{hours:02d}:{minutes:02d}" 
 
 def time_str_to_decimal(time_str):
-    hours, minutes = map(int, time_str.split(":")) #Will be used to calculate interval time weight
+    hours, minutes = map(int, time_str.split(":")) #Yes yes i know this shit could be inside increase_time 
     return hours + minutes / 60                 
 
 def work_logs(service_order, interval, date, starting_time, ending_time):
@@ -79,6 +81,11 @@ def work_logs(service_order, interval, date, starting_time, ending_time):
     real_minutes = 0
     available_time = 0
     output_text = ""
+    date_pattern = r"^(\d{2})[\/]?(\d{2})[\/]?(\d{4})$"
+    time_pattern = r"^(\d{2})[\:]?(\d{2})$"
+    r_date = re.search(date_pattern, date.strip())
+    s_time = re.search(time_pattern, starting_time.strip())
+    e_time = re.search(time_pattern, ending_time.strip())
 
     if not service_order:
         return "Por favor, insira uma ordem de serviço"
@@ -96,21 +103,28 @@ def work_logs(service_order, interval, date, starting_time, ending_time):
             ]
         except ValueError:
             return "Por favor, insira um intervalo válido"
-
-    try:
-        day, month, year = map(int, date.split("/"))
-    except ValueError:
+    
+    if r_date:
+        day   = r_date.group(1)
+        month = r_date.group(2)
+        year  = r_date.group(3)
+        if "/" not in r_date.group(0):
+            date = f"{day}/{month}/{year}"
+    else:
         return "Por favor, insira uma data válida."
 
-    try:
-        starting_hours, starting_minutes = map(int, starting_time.split(":"))
-        ending_hours, ending_minutes = map(int, ending_time.split(":"))
-    except ValueError:
-        return "Por favor, insira um horário válido."
+    
+    if s_time and e_time:
+        starting_hours   = int(s_time.group(1)) 
+        starting_minutes = int(s_time.group(2))
+        ending_hours     = int(e_time.group(1))
+        ending_minutes   = int(e_time.group(2))
+    else:
+        return "Por favor, insira um intervalo de tempo válido."
+
     
     real_hours = ending_hours - starting_hours
     real_minutes = ending_minutes - starting_minutes
-
     if intervals:
         available_time = (real_hours * 60 + real_minutes) / len(intervals)
         for idx, available_interval in enumerate(intervals):
@@ -145,14 +159,15 @@ def search_orders(search_input, search_output):
         result = " ".join(found)
         search_output.insert(tk.END, result)
     else:
-        search_output.insert(tk.END, "Nenhuma ordem encontrada.")
+        messagebox.showwarning("Atenção", "Nenhuma ordem encontrada")
 
 
 def copy_text(widget, window):
     text = widget.get("1.0", tk.END).strip()
+    
     if text:
         window.clipboard_clear()
         window.clipboard_append(text)
         window.update()
     else:
-        return "Nada a ser copiado"
+        messagebox.showwarning("Atenção", "Nada a ser copiado")
