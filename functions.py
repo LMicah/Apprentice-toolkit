@@ -83,6 +83,7 @@ def work_logs(service_order, interval, date, starting_time, ending_time):
     output_text = ""
     date_pattern = r"^(\d{2})[\/]?(\d{2})[\/]?(\d{4})$"
     time_pattern = r"^(\d{2})[\:]?(\d{2})$"
+    total_interval = []
     r_date = re.search(date_pattern, date.strip())
     s_time = re.search(time_pattern, starting_time.strip())
     e_time = re.search(time_pattern, ending_time.strip())
@@ -96,13 +97,21 @@ def work_logs(service_order, interval, date, starting_time, ending_time):
         interval_quantity = abs(end - start) + 1
     except ValueError:
         try:
-            intervals = [
-                line.strip()
-                for line in interval.strip().split("\n")
-                if line.strip()
-            ]
+            if " " in interval.strip():
+                intervalsx = interval.split(" ")
+                for intervalx in intervalsx:
+                    start, end = intervalx.split("-")
+                    for c in range(int(start), int(end)+1):
+                        total_interval.append(c)
         except ValueError:
-            return "Por favor, insira um intervalo válido"
+            try:
+                intervals = [
+                    line.strip()
+                    for line in interval.strip().split("\n")
+                    if line.strip()
+                ]
+            except ValueError:
+                messagebox.showwarning("Atenção", "Insira um intervalo de sequência válido.")
     
     if r_date:
         day   = r_date.group(1)
@@ -135,21 +144,33 @@ def work_logs(service_order, interval, date, starting_time, ending_time):
             formatted_total_hours = f"{total_hours:.2f}".replace(".", ",")
 
             output_text += f"{service_order}\t\t\t{available_interval}\t\t\t\t\t\t\t\t\t\t{date}\t{start_time}\t{date}\t{end_time}\t{formatted_total_hours}\n"
-    else:
-        available_time = (real_hours * 60 + real_minutes) / interval_quantity
-        for number in range(start, end + 1):
-            start_time = increase_time(starting_time, int(available_time * (number - start)))
-            end_time = increase_time(starting_time, int(available_time * (number - start + 1)))
+    elif total_interval:
+        available_time = (real_hours * 60 + real_minutes) / len(total_interval)
+        for idx, available_interval in enumerate(total_interval):
+            start_time = increase_time(starting_time, int(available_time * idx))
+            end_time = increase_time(starting_time, int(available_time * (idx + 1)))
 
             total_hours = time_str_to_decimal(end_time) - time_str_to_decimal(start_time)
             formatted_total_hours = f"{total_hours:.2f}".replace(".", ",")
 
-            output_text += f"{service_order}\t\t\t{number}\t\t\t\t\t\t\t\t\t\t{date}\t{start_time}\t{date}\t{end_time}\t{formatted_total_hours}\n"
- 
+            output_text += f"{service_order}\t\t\t{available_interval}\t\t\t\t\t\t\t\t\t\t{date}\t{start_time}\t{date}\t{end_time}\t{formatted_total_hours}\n"
+    else:
+        try:
+            available_time = (real_hours * 60 + real_minutes) / interval_quantity
+            for number in range(start, end + 1):
+                start_time = increase_time(starting_time, int(available_time * (number - start)))
+                end_time = increase_time(starting_time, int(available_time * (number - start + 1)))
+
+                total_hours = time_str_to_decimal(end_time) - time_str_to_decimal(start_time)
+                formatted_total_hours = f"{total_hours:.2f}".replace(".", ",")
+
+                output_text += f"{service_order}\t\t\t{number}\t\t\t\t\t\t\t\t\t\t{date}\t{start_time}\t{date}\t{end_time}\t{formatted_total_hours}\n"
+        except ZeroDivisionError:
+            messagebox.showwarning("Atenção", "Insira um intervalo de sequência válido.")
     return output_text
 
 def search_orders(search_input, search_output):
-    text = search_input.get("1.0", tk.END).replace("\n", "")
+    text = search_input.get("1.0", tk.END).replace("\n", " ")
     pattern = r"\b621\d{5}\b"
     found = re.findall(pattern, text)
 
@@ -162,7 +183,7 @@ def search_orders(search_input, search_output):
         messagebox.showwarning("Atenção", "Nenhuma ordem encontrada")
 
 
-def copy_text(widget, window):
+def copy_text(widget, window): #This allows the user to copy the output text, used in all frames
     text = widget.get("1.0", tk.END).strip()
     
     if text:
