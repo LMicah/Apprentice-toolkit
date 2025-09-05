@@ -1,6 +1,7 @@
 import tkinter as tk
 from tkinter import messagebox
 import re
+import json
 
 def process_orders(input_text, separator_entry, output_text):
     orders = input_text.get("1.0", tk.END)
@@ -10,9 +11,9 @@ def process_orders(input_text, separator_entry, output_text):
     if separator == "":
         separator = ","
 
-    count = 0
+    count = 0 
     new_orders = ""
-    for char in orders:
+    for char in orders: #Could (and should) be replaced with a regex, will think about it later.
         if count < 8:
             new_orders += char
             count += 1
@@ -96,22 +97,24 @@ def work_logs(service_order, interval, date, starting_time, ending_time):
         start, end = map(int, interval.split("-"))
         interval_quantity = abs(end - start) + 1
     except ValueError:
-        try:
-            if " " in interval.strip():
-                intervalsx = interval.split(" ")
-                for intervalx in intervalsx:
-                    start, end = intervalx.split("-")
-                    for c in range(int(start), int(end)+1):
+        if " " in interval:
+            intervalsx = interval.split()
+            for intervalx in intervalsx:
+                if "-" in intervalx:  
+                    s, e = intervalx.split("-")
+                    for c in range(int(s), int(e) + 1):
                         total_interval.append(c)
-        except ValueError:
-            try:
-                intervals = [
-                    line.strip()
-                    for line in interval.strip().split("\n")
-                    if line.strip()
-                ]
-            except ValueError:
-                messagebox.showwarning("Atenção", "Insira um intervalo de sequência válido.")
+                else:
+                    total_interval.append(int(intervalx))
+        elif "\n" in interval:
+            intervals = [
+                line.strip()
+                for line in interval.strip().split("\n")
+                if line.strip()
+            ]
+        else:
+            messagebox.showwarning("Atenção", "Insira um intervalo de sequência válido.")
+
     
     if r_date:
         day   = r_date.group(1)
@@ -182,13 +185,19 @@ def search_orders(search_input, search_output):
     else:
         messagebox.showwarning("Atenção", "Nenhuma ordem encontrada")
 
+def filters_and_equipments(search_input, search_output):
+    equipment = search_input
+    with open("info.json", encoding="utf-8") as file:
+        fleet_data = json.load(file)
+        dumpado = json.dumps(fleet_data, indent=4, ensure_ascii=False)
+        if equipment == fleet_data[equipment]:
+            ... 
 
 def copy_text(widget, window): #This allows the user to copy the output text, used in all frames
     text = widget.get("1.0", tk.END).strip()
-    
     if text:
         window.clipboard_clear()
         window.clipboard_append(text)
         window.update()
     else:
-        messagebox.showwarning("Atenção", "Nada a ser copiado")
+        messagebox.showwarning("Atenção", "Nada a ser copiado") 
