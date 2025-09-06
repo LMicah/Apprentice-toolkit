@@ -6,6 +6,7 @@ from functions import (
     search_orders,
     copy_text,
     work_logs,
+    filters_and_equipments,
 )
 
 
@@ -24,12 +25,13 @@ class App:
         self.processText_frame = self.create_processText_frame()
         self.searchOrders_frame = self.create_searchOrders_frame()
         self.workLogs_frame = self.create_workLogs_frame()
+        self.filters_frame = self.create_filters_frame()
         self.updateLogs_frame = self.create_updateLogs_frame()
 
         self.show_frame(self.menu_frame)
 
         # General style
-
+        
     def setup_style(self):
         style = ttk.Style(self.root)
         style.theme_use("clam")
@@ -62,7 +64,7 @@ class App:
         # Frame raiser
 
     def show_frame(self, frame):
-        frame.tkraise()
+        frame.tkraise() 
 
     def interval_frame(self, iframe):
         iframe.tkraise()
@@ -103,7 +105,7 @@ class App:
 
         ttk.Button(
             frame,
-            text="Apontamentos automatizados",
+            text="Gerar apontamentos",
             style="Grande.TButton",
             command=lambda: self.show_frame(self.workLogs_frame),
         ).pack(pady=20, ipadx=30, ipady=10)
@@ -113,6 +115,13 @@ class App:
             text="Procurar ordens",
             style="Grande.TButton",
             command=lambda: self.show_frame(self.searchOrders_frame),
+        ).pack(pady=20, ipadx=92, ipady=10)
+
+        ttk.Button(
+            frame,
+            text="Consulta filtros x frota",
+            style="Grande.TButton", 
+            command=lambda: self.show_frame(self.filters_frame),
         ).pack(pady=20, ipadx=92, ipady=10)
 
         tk.Button(
@@ -206,7 +215,7 @@ class App:
 
         self.ptext_input = tk.Text(
             frame,
-            height=8,
+            height=6,
             width=100,
             bg="#3c3f41",
             fg="#ffffff",
@@ -251,7 +260,7 @@ class App:
 
         self.ptext_output = tk.Text(
             frame,
-            height=8,
+            height=6,
             width=100,
             bg="#3c3f41",
             fg="#00ff00",
@@ -336,13 +345,13 @@ class App:
             text="⚙️ Gerar apontamentos",
             command=self.run_work_logs,
             style="Grande.TButton",
-        ).pack(pady=20)
+        ).pack(pady=10)
 
         ttk.Label(frame, text="Apontamentos:").pack(padx=10, pady=5)
 
         self.wlog_output = tk.Text(
             frame,
-            height=9,
+            height=5,
             width=100,
             bg="#3c3f41",
             fg="#00ff00",
@@ -460,6 +469,8 @@ class App:
         changelog_text = """
 - 🛠️ Adicionado suporte à datas em formatação alternativa (sem as barras "/").
 
+- 🛠️ Adicionado suporte à multiplos intervalos de uma só vez (no seguinte formato: "xx-xx xx-xx")
+
 - 🛠️ Adicionado suporte à horários em formatação alternativa (sem os dois pontos ":").
 
 - 🆕 Melhorias visuais implementadas.
@@ -492,7 +503,24 @@ class App:
 
         return frame
 
+    def create_filters_frame(self):
+        frame = tk.Frame(self.root, bg="#2b2b2b")
+        frame.place(relwidth=1, relheight=1)
 
+        label = ttk.Label(frame, text="Filtros x Frota (em construção)", font=("Arial", 20))
+        label.pack(pady=50)
+
+        
+        ttk.Button(
+            frame,
+            text="⬅ Voltar ao menu",
+            command=lambda: (
+                self.show_frame(self.menu_frame), 
+            ),
+        ).pack(pady=10) 
+
+        return frame
+    
 if __name__ == "__main__":
     root = tk.Tk()
     app = App(root)
