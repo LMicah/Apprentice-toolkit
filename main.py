@@ -418,7 +418,7 @@ class App:
         ttk.Button(
             frame,
             text="🔍 Encontrar ordens",
-            command=lambda: search_orders(self.search_input, self.search_output),
+            command=lambda: search_orders(self.search_input, self.search_output, self.number_of_lines),
         ).pack(pady=10)
 
         ttk.Label(frame, text="Ordens encontradas:").pack(padx=10, pady=10)
@@ -434,6 +434,16 @@ class App:
             wrap="word",
         )
         self.search_output.pack(padx=10, pady=10)
+
+        self.number_of_lines = tk.Label(
+        frame,
+        text="Quantidade de ordens encontradas: 0",
+        bg="#2b2b2b",
+        fg="#ff00bb",
+        font=("Consolas", 12),
+        anchor="w",   # alinha à esquerda
+        )
+        self.number_of_lines.pack(padx=10, pady=10)
 
         ttk.Button(
             frame,

@@ -172,7 +172,7 @@ def work_logs(service_order, interval, date, starting_time, ending_time):
             messagebox.showwarning("Atenção", "Insira um intervalo de sequência válido.")
     return output_text
 
-def search_orders(search_input, search_output):
+def search_orders(search_input, search_output, number_of_lines):
     text = search_input.get("1.0", tk.END).replace("\n", " ")
     pattern = r"\b621\d{5}\b"
     found = re.findall(pattern, text)
@@ -182,6 +182,7 @@ def search_orders(search_input, search_output):
     if found:
         result = " ".join(found)
         search_output.insert(tk.END, result)
+        number_of_lines.config(text= f"Quantidade de ordens encontradas: {len(found)}")
     else:
         messagebox.showwarning("Atenção", "Nenhuma ordem encontrada")
 
