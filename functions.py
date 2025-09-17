@@ -142,7 +142,6 @@ def work_logs(service_order, interval, date, starting_time, ending_time):
         for idx, available_interval in enumerate(intervals):
             start_time = increase_time(starting_time, int(available_time * idx))
             end_time = increase_time(starting_time, int(available_time * (idx + 1)))
-
             total_hours = time_str_to_decimal(end_time) - time_str_to_decimal(start_time)
             formatted_total_hours = f"{total_hours:.2f}".replace(".", ",")
 
