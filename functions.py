@@ -206,16 +206,16 @@ def copy_text(widget, window): #This allows the user to copy the output text, us
         messagebox.showwarning("Atenção", "Nada a ser copiado")
     
 
-def fetch_plans(model_key, plan_id):
+def fetch_plans(equipment, plan):
     # Ensure integers
     df_matrix["no_ref_prog"] = df_matrix["no_ref_prog"].astype(int, errors="ignore")
     
     # Filter by equipment
-    equipment = model_key.split()[0] + " " + model_key.split()[1]
+    equipment = equipment.split()[0] + " " + equipment.split()[1]
     df_equipment = df_matrix[df_matrix["Chave"].str.contains(equipment, case=False, na=False)]
     
     # Get divisors
-    valid_plans = [d for d in df_equipment["no_ref_prog"].unique() if plan_id % d == 0]
+    valid_plans = [d for d in df_equipment["no_ref_prog"].unique() if plan % d == 0]
     
     # Filter by model and divisors
     filtered_df = df_equipment[
@@ -227,12 +227,20 @@ def fetch_plans(model_key, plan_id):
 
 def get_equipment_and_plan(os_number):
     df_os = pd.read_csv("os.csv", sep=";", encoding="latin1", low_memory=False)
-    linha = df_os.loc[df_os["O.S"] == os_number]
+    os_line = df_os.loc[df_os["O.S"] == os_number]
 
-    if linha.empty:
-        print("⚠️ O.S não encontrada")
+    if os_line.empty:
+        print("⚠️ O.S not found")
+        return None, None
 
-    equipamento = str(linha.iloc[0]["MODELO"]).strip()
-    plano = str(linha.iloc[0]["PLANO"]).strip()  
+    equipment = str(os_line.iloc[0]["MODELO"]).strip()
+    plan_str = str(os_line.iloc[0]["PLANO"]).strip()
 
-    print(equipamento, plano)
+    # handle multiple plans like "250/50"
+    try:
+        plan = max(int(p) for p in plan_str.replace(" ", "").split("/") if p.isdigit())
+    except ValueError:
+        plan = None
+
+    print(equipment, plan)
+    return equipment, plan
