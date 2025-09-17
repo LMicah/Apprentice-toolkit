@@ -1,7 +1,10 @@
 import tkinter as tk
 from tkinter import messagebox
+import pandas as pd
 import re
 import json
+df_matrix = pd.read_csv("matriz.csv", sep=";", encoding="latin1", low_memory=False)
+df_os = pd.read_csv("os.csv", sep=";", encoding="latin1", low_memory=False)
 
 def process_orders(input_text, separator_entry, output_text):
     orders = input_text.get("1.0", tk.END)
@@ -200,4 +203,36 @@ def copy_text(widget, window): #This allows the user to copy the output text, us
         window.clipboard_append(text)
         window.update()
     else:
-        messagebox.showwarning("Atenção", "Nada a ser copiado") 
+        messagebox.showwarning("Atenção", "Nada a ser copiado")
+    
+
+def fetch_plans(model_key, plan_id):
+    # Ensure integers
+    df_matrix["no_ref_prog"] = df_matrix["no_ref_prog"].astype(int, errors="ignore")
+    
+    # Filter by equipment
+    equipment = model_key.split()[0] + " " + model_key.split()[1]
+    df_equipment = df_matrix[df_matrix["Chave"].str.contains(equipment, case=False, na=False)]
+    
+    # Get divisors
+    valid_plans = [d for d in df_equipment["no_ref_prog"].unique() if plan_id % d == 0]
+    
+    # Filter by model and divisors
+    filtered_df = df_equipment[
+        (df_equipment["no_ref_prog"].isin(valid_plans)) &
+        (df_equipment["fg_garantia"] == "N")
+    ][["no_seq", "de_tarefa", "de_sist_veic", "de_sub_sist", "de_compo"]]
+    
+    return filtered_df
+
+def get_equipment_and_plan(os_number):
+    df_os = pd.read_csv("os.csv", sep=";", encoding="latin1", low_memory=False)
+    linha = df_os.loc[df_os["O.S"] == os_number]
+
+    if linha.empty:
+        print("⚠️ O.S não encontrada")
+
+    equipamento = str(linha.iloc[0]["MODELO"]).strip()
+    plano = str(linha.iloc[0]["PLANO"]).strip()  
+
+    print(equipamento, plano)
