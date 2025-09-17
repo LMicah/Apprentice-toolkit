@@ -206,25 +206,6 @@ def copy_text(widget, window): #This allows the user to copy the output text, us
         messagebox.showwarning("Atenção", "Nada a ser copiado")
     
 
-def fetch_plans(equipment, plan):
-    # Ensure integers
-    df_matrix["no_ref_prog"] = df_matrix["no_ref_prog"].astype(int, errors="ignore")
-    
-    # Filter by equipment
-    equipment = equipment.split()[0] + " " + equipment.split()[1]
-    df_equipment = df_matrix[df_matrix["Chave"].str.contains(equipment, case=False, na=False)]
-    
-    # Get divisors
-    valid_plans = [d for d in df_equipment["no_ref_prog"].unique() if plan % d == 0]
-    
-    # Filter by model and divisors
-    filtered_df = df_equipment[
-        (df_equipment["no_ref_prog"].isin(valid_plans)) &
-        (df_equipment["fg_garantia"] == "N")
-    ][["no_seq", "de_tarefa", "de_sist_veic", "de_sub_sist", "de_compo"]]
-    
-    return filtered_df
-
 def get_equipment_and_plan(os_number):
     df_os = pd.read_csv("os.csv", sep=";", encoding="latin1", low_memory=False)
     os_line = df_os.loc[df_os["O.S"] == os_number]
@@ -244,3 +225,37 @@ def get_equipment_and_plan(os_number):
 
     print(equipment, plan)
     return equipment, plan
+
+def fetch_plans(equipment, plan):
+    # Ensure integers
+    df_matrix["no_ref_prog"] = pd.to_numeric(df_matrix["no_ref_prog"], errors="coerce")
+    plan = int(plan)
+
+    # Filter by equipment
+    equipment_key = equipment.split()[0] + " " + equipment.split()[1]
+    df_equipment = df_matrix[df_matrix["Chave"].str.contains(equipment_key, case=False, na=False)]
+
+    if df_equipment.empty:
+        return pd.DataFrame()
+
+    # Get divisors
+    valid_plans = [d for d in df_equipment["no_ref_prog"].unique() if plan % d == 0]
+
+    # excluir inspeções e hibernação (check case-insensitive)
+    mask_blacklist = df_equipment["de_tp_manut"].str.upper().str.contains(
+        "INSPEÇÃO|INS |HIBERNAÇÃO|ATIVAÇÃO DA HIBERNAÇÃO", na=False
+    )
+
+    # Filter by model, divisors and excluding blacklist
+    filtered_df = df_equipment[
+        (df_equipment["no_ref_prog"].isin(valid_plans)) &
+        (df_equipment["fg_garantia"] == "N") &
+        (~mask_blacklist)
+    ][["no_seq", "de_tarefa", "de_sist_veic", "de_sub_sist", "de_compo"]]
+
+    # Remove duplicates
+    filtered_df = filtered_df.drop_duplicates()
+    return filtered_df
+
+def get_intervals(filtered_df):
+    ...
