@@ -207,12 +207,11 @@ def copy_text(widget, window): #This allows the user to copy the output text, us
     
 
 def get_equipment_and_plan(os_number):
-    df_os = pd.read_csv("os.csv", sep=";", encoding="latin1", low_memory=False)
-    os_line = df_os.loc[df_os["O.S"] == os_number]
+    os_number_str = str(os_number).strip()
+    os_line = df_os[df_os["O.S"].astype(str).str.strip() == os_number_str]
 
     if os_line.empty:
-        print("⚠️ O.S not found")
-        return None, None
+        return False, False
 
     equipment = str(os_line.iloc[0]["MODELO"]).strip()
     plan_str = str(os_line.iloc[0]["PLANO"]).strip()
@@ -223,7 +222,6 @@ def get_equipment_and_plan(os_number):
     except ValueError:
         plan = None
 
-    print(equipment, plan)
     return equipment, plan
 
 def fetch_plans(equipment, plan):
@@ -241,7 +239,7 @@ def fetch_plans(equipment, plan):
     # Get divisors
     valid_plans = [d for d in df_equipment["no_ref_prog"].unique() if plan % d == 0]
 
-    # excluir inspeções e hibernação (check case-insensitive)
+    # Exclude unwanted plans (checks case-insensitively)
     mask_blacklist = df_equipment["de_tp_manut"].str.upper().str.contains(
         "INSPEÇÃO|INS |HIBERNAÇÃO|ATIVAÇÃO DA HIBERNAÇÃO", na=False
     )
@@ -251,11 +249,28 @@ def fetch_plans(equipment, plan):
         (df_equipment["no_ref_prog"].isin(valid_plans)) &
         (df_equipment["fg_garantia"] == "N") &
         (~mask_blacklist)
-    ][["no_seq", "de_tarefa", "de_sist_veic", "de_sub_sist", "de_compo"]]
+    ][["no_seq", "de_operacao", "de_tarefa", "de_sist_veic", "de_sub_sist", "de_compo"]]
 
-    # Remove duplicates
-    filtered_df = filtered_df.drop_duplicates()
+    # Remove duplicates and generates a new sequence
+    filtered_df = filtered_df.drop_duplicates(subset=["de_operacao", "de_sist_veic", "de_sub_sist"])
+    filtered_df = filtered_df.reset_index(drop=True)
+    filtered_df["no_seq"] = range(1, len(filtered_df)+1)
+    print(filtered_df)
     return filtered_df
 
-def get_intervals(filtered_df):
-    ...
+def split_tire_service(df): #mechanical_service actually means "any other service", too lazy to change it tho
+    #Filters for tire service
+    tire_service_mask = (
+    df["de_sub_sist"].str.strip().isin(["Roda", "Pneu"]) |
+    df["de_tarefa"].str.contains("borracharia", case=False, na=False)
+    )
+    
+    #Splits tire services from mechanical services
+    tire_service = df[tire_service_mask].copy()
+    mechanical_service = df[~tire_service_mask].copy()
+    
+    #Creates a list containing both services sequencies
+    tire_service = tire_service["no_seq"].tolist()
+    mechanical_service = mechanical_service["no_seq"].tolist()
+    
+    return tire_service, mechanical_service

@@ -1,11 +1,14 @@
 import tkinter as tk
-from tkinter import ttk
+from tkinter import ttk, messagebox
 from functions import (
     process_orders,
     process_text,
     search_orders,
     copy_text,
     work_logs,
+    fetch_plans,
+    get_equipment_and_plan,
+    split_tire_service,
     filters_and_equipments,
 )
 
@@ -24,7 +27,9 @@ class App:
         self.processOrders_frame = self.create_processOrders_frame()
         self.processText_frame = self.create_processText_frame()
         self.searchOrders_frame = self.create_searchOrders_frame()
+        self.apontamentos_frame = self.create_apontamentos_frame()
         self.workLogs_frame = self.create_workLogs_frame()
+        self.autoWorkLogs_frame = self.create_autoWorkLogs_frame()
         self.filters_frame = self.create_filters_frame()
         self.updateLogs_frame = self.create_updateLogs_frame()
 
@@ -69,8 +74,50 @@ class App:
     def interval_frame(self, iframe):
         iframe.tkraise()
 
-        # Menu config
+    def run_work_logs(self):
+        logs = work_logs(
+            self.wlog_order.get(),
+            self.wlog_interval_input.get("1.0", tk.END),
+            self.wlog_date.get(),
+            self.wlog_start.get(),
+            self.wlog_end.get(),
+        )
+        self.wlog_output.delete("1.0", tk.END)
+        self.wlog_output.insert(tk.END, logs)
 
+    def run_auto_work_logs(self, type=""):
+        os_number = self.wlog_order.get().strip()
+        date = self.wlog_date.get().strip()
+        start_time = self.wlog_start.get().strip()
+        end_time = self.wlog_end.get().strip()
+
+        # Gets the OS equipment and plan
+        equipment, plan = get_equipment_and_plan(os_number)
+        if not equipment or not plan:
+            messagebox.showwarning("Atenção!", "Ordem de serviço não encontrada!")
+            self.wlog_output.delete("1.0", tk.END)
+            return
+        df_filtered = fetch_plans(equipment, plan)
+
+        # splits tire service from general service (remember, general service and tire service in this code are the same thing)
+        borracharia_list, mecanica_list = split_tire_service(df_filtered)
+
+        if type == "tire_service":
+            interval_list = borracharia_list
+        else:
+            interval_list = mecanica_list
+
+        #Makes the interval list a string type array so our work_logs function can use it
+        interval_str = " ".join(str(i) for i in interval_list)
+
+        # calls the function
+        logs = work_logs(os_number, interval_str, date, start_time, end_time)
+
+        # Shows on output gui
+        self.wlog_output.delete("1.0", tk.END)
+        self.wlog_output.insert(tk.END, logs)
+
+        # Menu config
     def clear_fields(
         self, *widgets
     ):  # Used to clear all the input fields when the user clicks on the menu button
@@ -107,7 +154,7 @@ class App:
             frame,
             text="Gerar apontamentos",
             style="Grande.TButton",
-            command=lambda: self.show_frame(self.workLogs_frame),
+            command=lambda: self.show_frame(self.apontamentos_frame),
         ).pack(pady=20, ipadx=30, ipady=10)
 
         ttk.Button(
@@ -292,6 +339,38 @@ class App:
 
         return frame
 
+    def create_apontamentos_frame(self):
+        frame = tk.Frame(self.root, bg="#2b2b2b")
+        frame.place(relwidth=1, relheight=1)
+
+        ttk.Label(
+            frame,
+            text="Escolha o modo de geração de apontamentos:",
+            font=("Arial", 20)
+        ).pack(pady=50)
+
+        ttk.Button(
+            frame,
+            text="Manual",
+            style="Grande.TButton",
+            command=lambda: self.show_frame(self.workLogs_frame),
+        ).pack(pady=20, ipadx=100, ipady=10)
+
+        ttk.Button(
+            frame,
+            text="Automático",
+            style="Grande.TButton",
+            command=lambda: self.show_frame(self.autoWorkLogs_frame),
+        ).pack(pady=20, ipadx=100, ipady=10)
+
+        ttk.Button(
+            frame,
+            text="⬅ Voltar ao menu",
+            command=lambda: self.show_frame(self.menu_frame),
+        ).pack(pady=40)
+
+        return frame
+
     def create_workLogs_frame(self):
         frame = tk.Frame(self.root, bg="#2b2b2b")
         frame.place(relwidth=1, relheight=1)
@@ -384,17 +463,83 @@ class App:
         ).pack(pady=10)
 
         return frame
+    
+    def create_autoWorkLogs_frame(self):
+        frame = tk.Frame(self.root, bg="#2b2b2b")
+        frame.place(relwidth=1, relheight=1)
+        button_frame = tk.Frame(frame, bg="#2b2b2b")
 
-    def run_work_logs(self):
-        logs = work_logs(
-            self.wlog_order.get(),
-            self.wlog_interval_input.get("1.0", tk.END),
-            self.wlog_date.get(),
-            self.wlog_start.get(),
-            self.wlog_end.get(),
+
+        ttk.Label(frame, text="Ordem de serviço:").pack(padx=10, pady=5)
+        self.wlog_order = ttk.Entry(frame, width=30)
+        self.wlog_order.pack(padx=10, pady=15)
+
+        ttk.Label(frame, text="Data (dd/mm/aaaa):").pack(padx=10, pady=5)
+        self.wlog_date = ttk.Entry(frame, width=30)
+        self.wlog_date.pack(padx=10, pady=15)
+
+        ttk.Label(frame, text="Hora inicial (hh:mm):").pack(padx=10, pady=5)
+        self.wlog_start = ttk.Entry(frame, width=30)
+        self.wlog_start.pack(padx=10, pady=15)
+
+        ttk.Label(frame, text="Hora final (hh:mm):").pack(padx=10, pady=5)
+        self.wlog_end = ttk.Entry(frame, width=30)
+        self.wlog_end.pack(padx=10, pady=15)
+
+        button_frame.pack(pady=10)
+
+        ttk.Button(
+            button_frame,
+            text="Serviço geral",
+            command=lambda: self.run_auto_work_logs(), #None argument sice we defined it to an empty string on the function
+            style="Grande.TButton",
+        ).pack(side="left", pady=10)
+
+        ttk.Button(
+            button_frame,
+            text="Borracharia",
+            command=lambda: self.run_auto_work_logs("tire_service"),
+            style="Grande.TButton",
+        ).pack(side="left", padx=30, pady=10)
+        
+
+        ttk.Label(frame, text="Apontamentos:").pack(padx=10, pady=5)
+
+        self.wlog_output = tk.Text(
+            frame,
+            height=5,
+            width=100,
+            bg="#3c3f41",
+            fg="#00ff00",
+            insertbackground="white",
+            font=("Consolas", 12),
+            wrap="word",
         )
-        self.wlog_output.delete("1.0", tk.END)
-        self.wlog_output.insert(tk.END, logs)
+        self.wlog_output.pack(padx=10, pady=10)
+
+        ttk.Button(
+            frame,
+            text="📋 Copiar apontamentos",
+            command=lambda: copy_text(self.wlog_output, self.root),
+            style="Grande.TButton",
+        ).pack(pady=5)
+
+        ttk.Button(
+            frame,
+            text="⬅ Voltar ao menu",
+            command=lambda: (
+                self.clear_fields(
+                    self.wlog_order,
+                    self.wlog_interval_input,
+                    self.wlog_date,
+                    self.wlog_start,
+                    self.wlog_end,
+                ),
+                self.show_frame(self.menu_frame),
+            ),
+        ).pack(pady=10)
+
+        return frame
 
     # search orders gui
     def create_searchOrders_frame(self):
