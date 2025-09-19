@@ -76,16 +76,16 @@ class App:
 
     def run_work_logs(self):
         logs = work_logs(
-            self.wlog_order.get(),
+            self.manual_wlog_order.get(),
             self.wlog_interval_input.get("1.0", tk.END),
-            self.wlog_date.get(),
-            self.wlog_start.get(),
-            self.wlog_end.get(),
+            self.manual_wlog_date.get(),
+            self.manual_wlog_start.get(),
+            self.manual_wlog_end.get(),
         )
-        self.wlog_output.delete("1.0", tk.END)
-        self.wlog_output.insert(tk.END, logs)
+        self.manual_wlog_output.delete("1.0", tk.END)
+        self.manual_wlog_output.insert(tk.END, logs)
 
-    def run_auto_work_logs(self, type=""):
+    def run_auto_work_logs(self, plan_type=""):
         os_number = self.wlog_order.get().strip()
         date = self.wlog_date.get().strip()
         start_time = self.wlog_start.get().strip()
@@ -102,7 +102,7 @@ class App:
         # splits tire service from general service (remember, general service and tire service in this code are the same thing)
         borracharia_list, mecanica_list = split_tire_service(df_filtered)
 
-        if type == "tire_service":
+        if plan_type == "tire_service":
             interval_list = borracharia_list
         else:
             interval_list = mecanica_list
@@ -141,35 +141,35 @@ class App:
             text="Unir ordens",
             style="Grande.TButton",
             command=lambda: self.show_frame(self.processOrders_frame),
-        ).pack(pady=20, ipadx=100, ipady=10)
+        ).pack(pady=20, ipadx=100, ipady=8)
 
         ttk.Button(
             frame,
             text="Unir texto",
             style="Grande.TButton",
             command=lambda: self.show_frame(self.processText_frame),
-        ).pack(pady=20, ipadx=100, ipady=10)
+        ).pack(pady=20, ipadx=100, ipady=8)
 
         ttk.Button(
             frame,
             text="Gerar apontamentos",
             style="Grande.TButton",
             command=lambda: self.show_frame(self.apontamentos_frame),
-        ).pack(pady=20, ipadx=30, ipady=10)
+        ).pack(pady=20, ipadx=72, ipady=8)
 
         ttk.Button(
             frame,
             text="Procurar ordens",
             style="Grande.TButton",
             command=lambda: self.show_frame(self.searchOrders_frame),
-        ).pack(pady=20, ipadx=92, ipady=10)
+        ).pack(pady=20, ipadx=92, ipady=8)
 
         ttk.Button(
             frame,
             text="Consulta filtros x frota",
             style="Grande.TButton", 
             command=lambda: self.show_frame(self.filters_frame),
-        ).pack(pady=20, ipadx=92, ipady=10)
+        ).pack(pady=20, ipadx=66, ipady=8)
 
         tk.Button(
             frame,
@@ -376,8 +376,8 @@ class App:
         frame.place(relwidth=1, relheight=1)
 
         ttk.Label(frame, text="Ordem de serviço:").pack(padx=10, pady=5)
-        self.wlog_order = ttk.Entry(frame, width=30)
-        self.wlog_order.pack(padx=10, pady=5)
+        self.manual_wlog_order = ttk.Entry(frame, width=30)
+        self.manual_wlog_order.pack(padx=10, pady=5)
 
         ttk.Label(
             frame,
@@ -408,16 +408,16 @@ class App:
         ).pack(side="left")
 
         ttk.Label(frame, text="Data (dd/mm/aaaa):").pack(padx=10, pady=5)
-        self.wlog_date = ttk.Entry(frame, width=30)
-        self.wlog_date.pack(padx=10, pady=5)
+        self.manual_wlog_date = ttk.Entry(frame, width=30)
+        self.manual_wlog_date.pack(padx=10, pady=5)
 
         ttk.Label(frame, text="Hora inicial (hh:mm):").pack(padx=10, pady=5)
-        self.wlog_start = ttk.Entry(frame, width=30)
-        self.wlog_start.pack(padx=10, pady=5)
+        self.manual_wlog_start = ttk.Entry(frame, width=30)
+        self.manual_wlog_start.pack(padx=10, pady=5)
 
         ttk.Label(frame, text="Hora final (hh:mm):").pack(padx=10, pady=5)
-        self.wlog_end = ttk.Entry(frame, width=30)
-        self.wlog_end.pack(padx=10, pady=5)
+        self.manual_wlog_end = ttk.Entry(frame, width=30)
+        self.manual_wlog_end.pack(padx=10, pady=5)
 
         ttk.Button(
             frame,
@@ -428,7 +428,7 @@ class App:
 
         ttk.Label(frame, text="Apontamentos:").pack(padx=10, pady=5)
 
-        self.wlog_output = tk.Text(
+        self.manual_wlog_output = tk.Text(
             frame,
             height=5,
             width=100,
@@ -438,12 +438,12 @@ class App:
             font=("Consolas", 12),
             wrap="word",
         )
-        self.wlog_output.pack(padx=10, pady=10)
+        self.manual_wlog_output.pack(padx=10, pady=10)
 
         ttk.Button(
             frame,
             text="📋 Copiar apontamentos",
-            command=lambda: copy_text(self.wlog_output, self.root),
+            command=lambda: copy_text(self.manual_wlog_output, self.root),
             style="Grande.TButton",
         ).pack(pady=5)
 
@@ -452,11 +452,11 @@ class App:
             text="⬅ Voltar ao menu",
             command=lambda: (
                 self.clear_fields(
-                    self.wlog_order,
+                    self.manual_wlog_order,
                     self.wlog_interval_input,
-                    self.wlog_date,
-                    self.wlog_start,
-                    self.wlog_end,
+                    self.manual_wlog_date,
+                    self.manual_wlog_start,
+                    self.manual_wlog_end,
                 ),
                 self.show_frame(self.menu_frame),
             ),
@@ -530,7 +530,6 @@ class App:
             command=lambda: (
                 self.clear_fields(
                     self.wlog_order,
-                    self.wlog_interval_input,
                     self.wlog_date,
                     self.wlog_start,
                     self.wlog_end,
@@ -546,7 +545,7 @@ class App:
         frame = tk.Frame(self.root, bg="#2b2b2b")
         frame.place(relwidth=1, relheight=1)
 
-        ttk.Label(frame, text="Joga o textão confuso ai:").pack(padx=10, pady=10)
+        ttk.Label(frame, text="Insira o texto aqui: ").pack(padx=10, pady=10)
 
         self.search_input = tk.Text(
             frame,
@@ -586,7 +585,7 @@ class App:
         bg="#2b2b2b",
         fg="#ff00bb",
         font=("Consolas", 12),
-        anchor="w",   # alinha à esquerda
+        anchor="w",   # align to the left
         )
         self.number_of_lines.pack(padx=10, pady=10)
 
@@ -614,7 +613,7 @@ class App:
 
         tk.Label(
             frame, 
-            text="Essas são as mudanças que ocorreram desde a última versão: ",
+            text="Confira o que mudou desde a última versão: ",
             bg="#2b2b2b",
             fg="#a20290",
             font=("Segoe UI", 15, "bold"),
@@ -622,31 +621,25 @@ class App:
         
 
         changelog_text = """
-- 🛠️ Adicionado suporte à datas em formatação alternativa (sem as barras "/").
+- 🛠️ Adicionado suporte a multiplos intervalos para a geração de apontamentos.
 
-- 🛠️ Adicionado suporte à multiplos intervalos de uma só vez (no seguinte formato: "xx-xx xx-xx")
+- 🛠️ Adicionado contador OS a função de procurar ordens.
 
-- 🛠️ Adicionado suporte à horários em formatação alternativa (sem os dois pontos ":").
+- 🛠️ Melhorias na compatibilidade do design geral.
 
-- 🆕 Melhorias visuais implementadas.
-
-- 🆕 Seção "Notas de atualização" implementada.
-
-- 🆕 O programa agora possui um novo icone!
-
-- 🚀 Correções de pequenos erros e melhorias de qualidade de vida.
+- 🛠️ Melhorias de qualidade de vida.
 
         """
 
-        texto_exibicao = tk.Message(
+        update_output = tk.Message(
         frame,
         text=changelog_text,
         width=800,
         bg="#2b2b2b",
-        fg="#a20290",
+        fg="#da9ad3",
         font=("Consolas", 15),
         )
-        texto_exibicao.pack(padx=20, pady=40)
+        update_output.pack(padx=20, pady=40)
 
         ttk.Button(
             frame,
@@ -654,7 +647,7 @@ class App:
             command=lambda: (
                 self.show_frame(self.menu_frame),
             ),
-        ).pack(pady=10)
+        ).pack(pady=10, ipady=15, ipadx=30)
 
         return frame
 
@@ -662,7 +655,7 @@ class App:
         frame = tk.Frame(self.root, bg="#2b2b2b")
         frame.place(relwidth=1, relheight=1)
 
-        label = ttk.Label(frame, text="Filtros x Frota (em construção)", font=("Arial", 20))
+        label = ttk.Label(frame, text="Filtros x Frota (WIP)", font=("Arial", 20))
         label.pack(pady=50)
 
         
