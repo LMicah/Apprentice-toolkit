@@ -1,5 +1,6 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
+import json
 from functions import (
     process_orders,
     process_text,
@@ -8,7 +9,6 @@ from functions import (
     work_logs,
     fetch_plans,
     get_equipment_and_plan,
-    split_tire_service,
     split_auto_tire_service,
     filters_and_equipments,
 )
@@ -86,7 +86,7 @@ class App:
         )
         self.manual_wlog_output.delete("1.0", tk.END)
         self.manual_wlog_output.insert(tk.END, logs)
-
+        
     def run_auto_work_logs(self, plan_type=""):
         os_number = self.wlog_order.get().strip()
         date = self.wlog_date.get().strip()
@@ -106,6 +106,9 @@ class App:
 
         if plan_type == "tire_service":
             interval_list = borracharia_list
+            if not interval_list:
+                messagebox.showwarning("Atenção", "Essa OS não possui nenhuma sequência de borracharia.")
+                return
         else:
             interval_list = mecanica_list
 

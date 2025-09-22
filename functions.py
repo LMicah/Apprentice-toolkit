@@ -80,6 +80,11 @@ def time_str_to_decimal(time_str):
     return hours + minutes / 60                 
 
 def work_logs(service_order, interval, date, starting_time, ending_time, choice=""):
+    df = pd.read_csv(StringIO(interval), sep="\t", header=None, engine="python")
+    df = df.reset_index()
+    df["index"] = df["index"] + 1
+    tire_service, general = split_tire_service(df)
+    
     interval_quantity = 0
     intervals = None
     real_hours = 0
@@ -101,7 +106,7 @@ def work_logs(service_order, interval, date, starting_time, ending_time, choice=
     try:
         start, end = map(int, interval.split("-"))
         interval_quantity = abs(end - start) + 1
-    except ValueError:
+    except (ValueError, AttributeError):
         try:
             if " " in interval:
                 intervalsx = interval.split()
@@ -118,27 +123,15 @@ def work_logs(service_order, interval, date, starting_time, ending_time, choice=
                     for line in interval.strip().split("\n")
                     if line.strip()
                 ]
-        except ValueError:
-            if isinstance(interval, list):
-                interval_str = "\n".join(map(str, interval))  # interval were made a list in the previous lines, this turns it on a string again
-            else:
-                interval_str = str(interval)  # will make sure its a string 
-
-            df = pd.read_csv(StringIO(interval_str), sep="\t", header=None) #makes the string a pandas data frame
-            df = df.reset_index() #creates and index column
-            df["index"] = df["index"] + 1 #makes the index column start from 1 instead of 0
-
-            print(df.columns) #just to debug 
-            print(df)         #also debug
-
-            tire_service, general= split_tire_service(df)
-            if not tire_service:  
-                messagebox.showwarning("Atenção", "Essa ordem de serviço não possui serviços de borracharia.")
-                return
+        except (ValueError, AttributeError):
             if choice == "tire_service":
-                intervals = tire_service 
+                if not tire_service:
+                    messagebox.showwarning("Atenção", "Essa ordem de serviço não possui serviços de borracharia.")
+                    return
+                else:
+                    total_interval = [str(x) for x in tire_service]
             else:
-                intervals = general
+                total_interval = [str(x) for x in general]
 
     if r_date:
         day   = r_date.group(1)
@@ -195,6 +188,7 @@ def work_logs(service_order, interval, date, starting_time, ending_time, choice=
         except ZeroDivisionError:
             messagebox.showwarning("Atenção", "Insira um intervalo de sequência válido.")
     return output_text
+
 
 def search_orders(search_input, search_output, number_of_lines):
     text = search_input.get("1.0", tk.END).replace("\n", " ")
@@ -275,12 +269,17 @@ def fetch_plans(equipment, plans):
     return filtered_df
 
 def split_tire_service(df): #mechanical_service actually means "any other service", too lazy to change it tho
-    df[11] = df[11].astype(str)
-    df[7] = df[7].astype(str)
+    if 10 not in df.columns: #DO NOT FUCKING TOUCH THIS
+        for i in range(11):
+            if i not in df.columns:
+                df[i] = ""
+
+    df[10] = df[10].astype(str)
+    df[6] = df[6].astype(str)
     tire_service_mask = (
     (df[10].str.strip().isin(["Roda", "Pneu"])) & 
     (~df[6].str.contains("Verificar integridade|Verificar a integridade", case=False, na=False))&
-    (~df["de_tarefa"].str.contains("Quando houver espaçador, retirar rodas", case=False, na=False))|
+    (~df[6].str.contains("Quando houver espaçador, retirar rodas", case=False, na=False))|
     (df[6].str.contains("pneus|pneu", case=False, na=False)) &
     (~df[6].str.contains("pneum", case=False, na=False))|
     (df[6].str.contains("borracharia", case=False, na=False)) & 
