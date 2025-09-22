@@ -120,16 +120,19 @@ def work_logs(service_order, interval, date, starting_time, ending_time, choice=
                 ]
         except ValueError:
             if isinstance(interval, list):
-                interval_str = "\n".join(map(str, interval))  # transforma lista em string
+                interval_str = "\n".join(map(str, interval))  # interval were made a list in the previous lines, this turns it on a string again
             else:
-                interval_str = str(interval)  # garante string mesmo se for outro tipo
-            df = pd.read_csv(StringIO(interval_str), sep="\t", header=None)
-            df = df.reset_index()
-            df["index"] = df["index"] + 1
-            print(df.columns)
-            print(df) 
+                interval_str = str(interval)  # will make sure its a string 
+
+            df = pd.read_csv(StringIO(interval_str), sep="\t", header=None) #makes the string a pandas data frame
+            df = df.reset_index() #creates and index column
+            df["index"] = df["index"] + 1 #makes the index column start from 1 instead of 0
+
+            print(df.columns) #just to debug 
+            print(df)         #also debug
+
             tire_service, general= split_tire_service(df)
-            if not tire_service:
+            if not tire_service:  
                 messagebox.showwarning("Atenção", "Essa ordem de serviço não possui serviços de borracharia.")
                 return
             if choice == "tire_service":
@@ -137,9 +140,6 @@ def work_logs(service_order, interval, date, starting_time, ending_time, choice=
             else:
                 intervals = general
 
-
-
-    
     if r_date:
         day   = r_date.group(1)
         month = r_date.group(2)
@@ -159,11 +159,12 @@ def work_logs(service_order, interval, date, starting_time, ending_time, choice=
         return "Por favor, insira um intervalo de tempo válido."
 
     
+   
     real_hours = ending_hours - starting_hours
     real_minutes = ending_minutes - starting_minutes
     if intervals:
-        available_time = (real_hours * 60 + real_minutes) / len(intervals)
-        for idx, available_interval in enumerate(intervals):
+        available_time = (real_hours * 60 + real_minutes) / len(intervals)     #I will remake this entire monster later
+        for idx, available_interval in enumerate(intervals):                   #3 months later: i will never remake this
             start_time = increase_time(starting_time, int(available_time * idx))
             end_time = increase_time(starting_time, int(available_time * (idx + 1)))
             total_hours = time_str_to_decimal(end_time) - time_str_to_decimal(start_time)
@@ -235,45 +236,39 @@ def get_equipment_and_plan(os_number):
         return False, False
 
     equipment = str(os_line.iloc[0]["MODELO"]).strip()
-    plan_str = str(os_line.iloc[0]["PLANO"]).strip()
+    plan = str(os_line.iloc[0]["PLANO"]).strip()
 
-    # handle multiple plans like "250/50"
-    try:
-        plan = max(int(p) for p in plan_str.replace(" ", "").split("/") if p.isdigit())
-    except ValueError:
-        plan = None
+    plan_list = plan.split("/")
 
-    return equipment, plan
+    return equipment, plan_list
 
-def fetch_plans(equipment, plan):
-    # Ensure integers
+def fetch_plans(equipment, plans):
+    # Make sure the plans are integers
     df_matrix["no_ref_prog"] = pd.to_numeric(df_matrix["no_ref_prog"], errors="coerce")
-    plan = int(plan)
+    plans = [int(str(p).strip()) for p in plans]
+    print(plans)
 
     # Filter by equipment
-    equipment_key = equipment.split()[0] + " " + equipment.split()[1]
-    df_equipment = df_matrix[df_matrix["Chave"].str.contains(equipment_key, case=False, na=False)]
+    keys = [f"{equipment}{p}N" for p in plans]
+    df_equipment = df_matrix[df_matrix["Chave"].isin(keys)]
+
 
     if df_equipment.empty:
         return pd.DataFrame()
 
-    # Get divisors
-    valid_plans = [d for d in df_equipment["no_ref_prog"].unique() if plan % d == 0]
-
-    # Exclude unwanted plans (checks case-insensitively)
+    # Exclude unwanted plans 
     mask_blacklist = df_equipment["de_tp_manut"].str.upper().str.contains(
-        "INSPEÇÃO|INS |HIBERNAÇÃO|ATIVAÇÃO DA HIBERNAÇÃO", na=False
+        "INSPEÇÃO|INS |HIBERNAÇÃO|ATIVAÇÃO DA HIBERNAÇÃO", case= False, na=False
     )
 
-    # Filter by model, divisors and excluding blacklist
     filtered_df = df_equipment[
-        (df_equipment["no_ref_prog"].isin(valid_plans)) &
+        (df_equipment["no_ref_prog"].isin(plans)) &
         (df_equipment["fg_garantia"] == "N") &
         (~mask_blacklist)
     ][["no_seq", "de_operacao", "de_tarefa", "de_sist_veic", "de_sub_sist", "de_compo"]]
 
     # Remove duplicates and generates a new sequence
-    filtered_df = filtered_df.drop_duplicates(subset=["de_operacao", "de_sist_veic", "de_sub_sist"])
+    filtered_df = filtered_df.drop_duplicates(subset=["de_operacao", "de_sist_veic", "de_sub_sist", "de_compo"])
     filtered_df = filtered_df.reset_index(drop=True)
     filtered_df["no_seq"] = range(1, len(filtered_df)+1)
     print(filtered_df)
@@ -282,19 +277,41 @@ def fetch_plans(equipment, plan):
 def split_tire_service(df): #mechanical_service actually means "any other service", too lazy to change it tho
     df[11] = df[11].astype(str)
     df[7] = df[7].astype(str)
-    borracharia_mask = (
+    tire_service_mask = (
     (df[10].str.strip().isin(["Roda", "Pneu"])) & 
-    (~df[6].str.contains("Verificar integridade|Verificar a integridade", case=False, na=False))|
+    (~df[6].str.contains("Verificar integridade|Verificar a integridade", case=False, na=False))&
+    (~df["de_tarefa"].str.contains("Quando houver espaçador, retirar rodas", case=False, na=False))|
     (df[6].str.contains("pneus|pneu", case=False, na=False)) &
     (~df[6].str.contains("pneum", case=False, na=False))|
     (df[6].str.contains("borracharia", case=False, na=False)) & 
     (~df[6].str.contains("Verificar integridade|Verificar a integridade", case=False, na=False))
     )
     
-    borracharia = df[borracharia_mask].copy()
-    mecanica = df[~borracharia_mask].copy()
+    tire_service = df[tire_service_mask].copy()
+    general = df[~tire_service_mask].copy()
     
-    borracharia = borracharia["index"].tolist()
-    mecanica = mecanica["index"].tolist()
+    tire_service = tire_service["index"].tolist()
+    general = general["index"].tolist()
     
-    return borracharia, mecanica
+    return tire_service, general
+
+def split_auto_tire_service(df): #Same as above but works for auto logs generation
+    df["de_sub_sist"] = df["de_sub_sist"].astype(str)
+    df["de_tarefa"] = df["de_tarefa"].astype(str)
+    tire_service_mask = (
+    (df["de_sub_sist"].str.strip().isin(["Roda", "Pneu"])) & 
+    (~df["de_tarefa"].str.contains("Verificar integridade|Verificar a integridade", case=False, na=False))&
+    (~df["de_tarefa"].str.contains("Quando houver espaçador, retirar rodas", case=False, na=False))|
+    (df["de_tarefa"].str.contains("pneus|pneu", case=False, na=False)) &
+    (~df["de_tarefa"].str.contains("pneum", case=False, na=False))|
+    (df["de_tarefa"].str.contains("borracharia", case=False, na=False)) & 
+    (~df["de_tarefa"].str.contains("Verificar integridade|Verificar a integridade", case=False, na=False))
+    )
+    
+    tire_service = df[tire_service_mask].copy()
+    general = df[~tire_service_mask].copy()
+    
+    tire_service = tire_service["no_seq"].tolist()
+    general = general["no_seq"].tolist()
+    
+    return tire_service, general
