@@ -9,6 +9,7 @@ from functions import (
     fetch_plans,
     get_equipment_and_plan,
     split_tire_service,
+    split_auto_tire_service,
     filters_and_equipments,
 )
 
@@ -74,13 +75,14 @@ class App:
     def interval_frame(self, iframe):
         iframe.tkraise()
 
-    def run_work_logs(self):
+    def run_work_logs(self, plan_type=""):
         logs = work_logs(
             self.manual_wlog_order.get(),
             self.wlog_interval_input.get("1.0", tk.END),
             self.manual_wlog_date.get(),
             self.manual_wlog_start.get(),
             self.manual_wlog_end.get(),
+            plan_type
         )
         self.manual_wlog_output.delete("1.0", tk.END)
         self.manual_wlog_output.insert(tk.END, logs)
@@ -100,7 +102,7 @@ class App:
         df_filtered = fetch_plans(equipment, plan)
 
         # splits tire service from general service (remember, general service and tire service in this code are the same thing)
-        borracharia_list, mecanica_list = split_tire_service(df_filtered)
+        borracharia_list, mecanica_list = split_auto_tire_service(df_filtered)
 
         if plan_type == "tire_service":
             interval_list = borracharia_list
@@ -374,6 +376,7 @@ class App:
     def create_workLogs_frame(self):
         frame = tk.Frame(self.root, bg="#2b2b2b")
         frame.place(relwidth=1, relheight=1)
+        button_frame = tk.Frame(frame, bg="#2b2b2b")
 
         ttk.Label(frame, text="Ordem de serviço:").pack(padx=10, pady=5)
         self.manual_wlog_order = ttk.Entry(frame, width=30)
@@ -419,12 +422,22 @@ class App:
         self.manual_wlog_end = ttk.Entry(frame, width=30)
         self.manual_wlog_end.pack(padx=10, pady=5)
 
+
+        button_frame.pack(pady=10, fill="x")
+
         ttk.Button(
-            frame,
-            text="⚙️ Gerar apontamentos",
-            command=self.run_work_logs,
+            button_frame,
+            text="⚙️ Gerar apontamentos gerais",
+            command=lambda: self.run_work_logs(),
             style="Grande.TButton",
-        ).pack(pady=10)
+        ).pack(side="left", expand=True, fill="x", padx=(10,5)) 
+
+        ttk.Button(
+            button_frame,
+            text="⚙️ Gerar apontamentos da borracharia",
+            command=lambda: self.run_work_logs("tire_service"),
+            style="Grande.TButton",
+        ).pack(side="left", expand=True, fill="x", padx=(5,10))
 
         ttk.Label(frame, text="Apontamentos:").pack(padx=10, pady=5)
 
@@ -622,6 +635,8 @@ class App:
 
         changelog_text = """
 - 🛠️ Adicionado suporte a multiplos intervalos para a geração de apontamentos.
+
+- 🛠️ Adicionado suporte ao plano de manutenção para a geração de apontamentos.
 
 - 🛠️ Adicionado contador OS a função de procurar ordens.
 
