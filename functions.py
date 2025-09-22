@@ -3,6 +3,7 @@ from tkinter import messagebox
 import pandas as pd
 import re
 import json
+from io import StringIO
 df_matrix = pd.read_csv("matriz.csv", sep=";", encoding="latin1", low_memory=False)
 df_os = pd.read_csv("os.csv", sep=";", encoding="latin1", low_memory=False)
 
@@ -78,7 +79,7 @@ def time_str_to_decimal(time_str):
     hours, minutes = map(int, time_str.split(":")) #Yes yes i know this shit could be inside increase_time 
     return hours + minutes / 60                 
 
-def work_logs(service_order, interval, date, starting_time, ending_time):
+def work_logs(service_order, interval, date, starting_time, ending_time, choice=""):
     interval_quantity = 0
     intervals = None
     real_hours = 0
@@ -95,28 +96,48 @@ def work_logs(service_order, interval, date, starting_time, ending_time):
     if not service_order:
         return "Por favor, insira uma ordem de serviço"
     service_order = service_order.strip()
+    
 
     try:
         start, end = map(int, interval.split("-"))
         interval_quantity = abs(end - start) + 1
     except ValueError:
-        if " " in interval:
-            intervalsx = interval.split()
-            for intervalx in intervalsx:
-                if "-" in intervalx:  
-                    s, e = intervalx.split("-")
-                    for c in range(int(s), int(e) + 1):
-                        total_interval.append(c)
-                else:
-                    total_interval.append(int(intervalx))
-        elif "\n" in interval:
-            intervals = [
-                line.strip()
-                for line in interval.strip().split("\n")
-                if line.strip()
-            ]
-        else:
-            messagebox.showwarning("Atenção", "Insira um intervalo de sequência válido.")
+        try:
+            if " " in interval:
+                intervalsx = interval.split()
+                for intervalx in intervalsx:
+                    if "-" in intervalx:  
+                        s, e = intervalx.split("-")
+                        for c in range(int(s), int(e) + 1):
+                            total_interval.append(c)
+                    else:
+                        total_interval.append(int(intervalx))
+            elif "\n" in interval:
+                intervals = [
+                    line.strip()
+                    for line in interval.strip().split("\n")
+                    if line.strip()
+                ]
+        except ValueError:
+            if isinstance(interval, list):
+                interval_str = "\n".join(map(str, interval))  # transforma lista em string
+            else:
+                interval_str = str(interval)  # garante string mesmo se for outro tipo
+            df = pd.read_csv(StringIO(interval_str), sep="\t", header=None)
+            df = df.reset_index()
+            df["index"] = df["index"] + 1
+            print(df.columns)
+            print(df) 
+            tire_service, general= split_tire_service(df)
+            if not tire_service:
+                messagebox.showwarning("Atenção", "Essa ordem de serviço não possui serviços de borracharia.")
+                return
+            if choice == "tire_service":
+                intervals = tire_service 
+            else:
+                intervals = general
+
+
 
     
     if r_date:
@@ -259,18 +280,21 @@ def fetch_plans(equipment, plan):
     return filtered_df
 
 def split_tire_service(df): #mechanical_service actually means "any other service", too lazy to change it tho
-    #Filters for tire service
-    tire_service_mask = (
-    df["de_sub_sist"].str.strip().isin(["Roda", "Pneu"]) |
-    df["de_tarefa"].str.contains("borracharia", case=False, na=False)
+    df[11] = df[11].astype(str)
+    df[7] = df[7].astype(str)
+    borracharia_mask = (
+    (df[10].str.strip().isin(["Roda", "Pneu"])) & 
+    (~df[6].str.contains("Verificar integridade|Verificar a integridade", case=False, na=False))|
+    (df[6].str.contains("pneus|pneu", case=False, na=False)) &
+    (~df[6].str.contains("pneum", case=False, na=False))|
+    (df[6].str.contains("borracharia", case=False, na=False)) & 
+    (~df[6].str.contains("Verificar integridade|Verificar a integridade", case=False, na=False))
     )
     
-    #Splits tire services from mechanical services
-    tire_service = df[tire_service_mask].copy()
-    mechanical_service = df[~tire_service_mask].copy()
+    borracharia = df[borracharia_mask].copy()
+    mecanica = df[~borracharia_mask].copy()
     
-    #Creates a list containing both services sequencies
-    tire_service = tire_service["no_seq"].tolist()
-    mechanical_service = mechanical_service["no_seq"].tolist()
+    borracharia = borracharia["index"].tolist()
+    mecanica = mecanica["index"].tolist()
     
-    return tire_service, mechanical_service
+    return borracharia, mecanica
