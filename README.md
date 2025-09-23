@@ -2,7 +2,7 @@
 
 The **Apprentice Toolkit** was born quite casually: the initial idea was simply to eliminate the need to use Excel’s `TEXTJOIN` formula. At first, it was just a small script to make everyday work easier. But, like every project that solves a real pain point, it started to grow. After receiving positive feedback from colleagues, I realized it could go much further: I began automating other workflows, adding new features, and soon the original name no longer made sense. It might be difficult to understand what this program actually does, since its use cases are extremely specific and niche, but it has truly been helping me a lot recently.
 
-Although this software was not originally created to be the final project for **CS50P**, I decided to use it for the course because of how much time it took me to make (and to be honest, it’s not even finished yet). This required partially restructuring the code to meet the final project requirements, such as moving some functions from `functions.py` into `project.py`. Some design decisions may look a bit unusual, but they make sense in that context.
+Originally created to be the final project for **CS50P** (and to be honest, it’s not even finished yet). 
 
 ---
 
@@ -43,3 +43,5 @@ The project uses **Tkinter** to provide a simple but functional graphical interf
 ## Testing
 
 Unit tests were implemented with `pytest`, using mock objects to simulate text input, output boxes, and labels. This ensures that critical functions such as `process_orders`, `process_text`, and `search_orders` behave reliably.
+
+
