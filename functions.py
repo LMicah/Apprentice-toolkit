@@ -98,6 +98,7 @@ def work_logs(service_order, interval, date, starting_time, ending_time, choice=
     s_time = re.search(time_pattern, starting_time.strip())
     e_time = re.search(time_pattern, ending_time.strip())
 
+
     if not service_order:
         return "Por favor, insira uma ordem de serviço"
     service_order = service_order.strip()
