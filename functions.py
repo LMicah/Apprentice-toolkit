@@ -287,9 +287,13 @@ def split_tire_service(df): #mechanical_service actually means "any other servic
     (~df[6].str.contains("Verificar integridade|Verificar a integridade", case=False, na=False))
     )
     
-    tire_service = df[tire_service_mask].copy()
-    general = df[~tire_service_mask].copy()
-    
+    pending_service_mask= ( #filters for pending services so we can save up resources 
+    df[0].str.strip() == "N"
+    )
+
+    tire_service = df[tire_service_mask & pending_service_mask].copy()
+    general = df[(~tire_service_mask) & pending_service_mask].copy()
+
     tire_service = tire_service["index"].tolist()
     general = general["index"].tolist()
     
