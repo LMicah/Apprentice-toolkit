@@ -8,25 +8,19 @@ df_matrix = pd.read_csv("matriz.csv", sep=";", encoding="latin1", low_memory=Fal
 df_os = pd.read_csv("os.csv", sep=";", encoding="latin1", low_memory=False)
 
 def process_orders(input_text: str , separator_entry: str, output_text: str):
+    orders_pattern = r"\b621\d{5}\b"
     orders = input_text.get("1.0", tk.END)
-    orders = "".join(orders.split()).replace(",", "")
+    orders = re.findall(orders_pattern, orders)
 
     separator = separator_entry.get()
     if separator == "":
         separator = ","
 
-    count = 0 
-    new_orders = ""
-    for char in orders: #Could (and should) be replaced with a regex, will think about it later.
-        if count < 8:
-            new_orders += char
-            count += 1
-        else:
-            new_orders += f"{separator}{char}"
-            count = 1
+    new_orders = separator.join(orders)
 
     if not new_orders:
         messagebox.showwarning("Atenção", "Não existe nenhuma ordem a ser processada")
+        return
 
     output_text.delete("1.0", tk.END)
     output_text.insert(tk.END, new_orders)
@@ -58,6 +52,7 @@ def process_text(ptext_input: str, separator_entry: str, space_choice: bool, out
 
     if not text:
         messagebox.showwarning("Atenção", "Nenhum texto inserido")
+        return
     elif new_text.endswith(separator):
         new_text = new_text[: -len(separator)]
     output_text.delete("1.0", tk.END)
@@ -80,11 +75,7 @@ def time_str_to_decimal(time_str: str):
     return hours + minutes / 60                 
 
 def work_logs(service_order: str, interval: str, date: str, starting_time: str, ending_time: str, choice: str = ""):
-    df = pd.read_csv(StringIO(interval), sep="\t", header=None, engine="python")
-    df = df.reset_index()
-    df["index"] = df["index"] + 1
-    tire_service, general = split_tire_service(df)
-    
+
     interval_quantity = 0
     intervals = None
     real_hours = 0
@@ -100,7 +91,8 @@ def work_logs(service_order: str, interval: str, date: str, starting_time: str, 
 
 
     if not service_order:
-        return "Por favor, insira uma ordem de serviço"
+        messagebox.showwarning("Atenção", "Por favor, insira uma ordem de serviço")
+        return
     service_order = service_order.strip()
     
 
@@ -125,6 +117,11 @@ def work_logs(service_order: str, interval: str, date: str, starting_time: str, 
                     if line.strip()
                 ]
         except (ValueError, AttributeError):
+            df = pd.read_csv(StringIO(interval), sep="\t", header=None, engine="python")
+            df = df.reset_index()
+            df["index"] = df["index"] + 1
+            tire_service, general = split_tire_service(df)
+
             if choice == "tire_service":
                 if not tire_service:
                     messagebox.showwarning("Atenção", "Essa ordem de serviço não possui serviços de borracharia.")
@@ -141,7 +138,8 @@ def work_logs(service_order: str, interval: str, date: str, starting_time: str, 
         if "/" not in r_date.group(0):
             date = f"{day}/{month}/{year}"
     else:
-        return "Por favor, insira uma data válida."
+        messagebox.showwarning("Atenção", "Por favor, insira uma data válida.")
+        return
 
     
     if s_time and e_time:
@@ -150,7 +148,8 @@ def work_logs(service_order: str, interval: str, date: str, starting_time: str, 
         ending_hours     = int(e_time.group(1))
         ending_minutes   = int(e_time.group(2))
     else:
-        return "Por favor, insira um intervalo de tempo válido."
+        messagebox.showwarning("Atenção", "Por favor, insira um intervalo de tempo válido.")
+        return 
 
     
    
@@ -188,6 +187,11 @@ def work_logs(service_order: str, interval: str, date: str, starting_time: str, 
                 output_text += f"{service_order}\t\t\t{number}\t\t\t\t\t\t\t\t\t\t{date}\t{start_time}\t{date}\t{end_time}\t{formatted_total_hours}\n"
         except ZeroDivisionError:
             messagebox.showwarning("Atenção", "Insira um intervalo de sequência válido.")
+            return
+        
+    if "-" in output_text:
+        messagebox.showwarning("Atenção", "Conserte o horário inserido e pare de fazer cagada!.")
+        return
     return output_text
 
 
@@ -204,6 +208,7 @@ def search_orders(search_input: str, search_output: str, number_of_lines: str):
         number_of_lines.config(text= f"Quantidade de ordens encontradas: {len(found)}")
     else:
         messagebox.showwarning("Atenção", "Nenhuma ordem encontrada")
+        return
 
 def filters_and_equipments(search_input: str, search_output: str):
     equipment = search_input
@@ -221,7 +226,7 @@ def copy_text(widget, window): #This allows the user to copy the output text, us
         window.update()
     else:
         messagebox.showwarning("Atenção", "Nada a ser copiado")
-    
+        return
 
 def get_equipment_and_plan(os_number: str):
     os_number_str = str(os_number).strip()
@@ -279,7 +284,7 @@ def split_tire_service(df: pd): #mechanical_service actually means "any other se
     df[6] = df[6].astype(str)
     tire_service_mask = (
     (df[10].str.strip().isin(["Roda", "Pneu"])) & 
-    (~df[6].str.contains("Verificar integridade|Verificar a integridade", case=False, na=False))&
+    (~df[6].str.contains("Verificar integridade|Verificar a integridade|suspensões|Sistema de freio", case=False, na=False))&
     (~df[6].str.contains("Quando houver espaçador, retirar rodas", case=False, na=False))|
     (df[6].str.contains("pneus|pneu", case=False, na=False)) &
     (~df[6].str.contains("pneum", case=False, na=False))|
