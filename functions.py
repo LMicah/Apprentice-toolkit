@@ -7,7 +7,7 @@ from io import StringIO
 df_matrix = pd.read_csv("matriz.csv", sep=";", encoding="latin1", low_memory=False)
 df_os = pd.read_csv("os.csv", sep=";", encoding="latin1", low_memory=False)
 
-def process_orders(input_text, separator_entry, output_text):
+def process_orders(input_text: str , separator_entry: str, output_text: str):
     orders = input_text.get("1.0", tk.END)
     orders = "".join(orders.split()).replace(",", "")
 
@@ -32,7 +32,7 @@ def process_orders(input_text, separator_entry, output_text):
     output_text.insert(tk.END, new_orders)
 
 
-def process_text(ptext_input, separator_entry, space_choice, output_text):
+def process_text(ptext_input: str, separator_entry: str, space_choice: bool, output_text: str):
     text = ptext_input.get("1.0", tk.END).strip()
     lines = text.split("\n")
 
@@ -64,7 +64,7 @@ def process_text(ptext_input, separator_entry, space_choice, output_text):
     output_text.insert(tk.END, new_text)
 
 
-def increase_time(time, amount):  # will be used to create the output_text in work_logs 
+def increase_time(time: str, amount: int):  # will be used to create the output_text in work_logs 
     hours = int(time[:2]) #first two characters (dont touch this if its passing the regex the convertion will be fine)
     minutes = int(time[-2:]) #last two chracters (same as above)
     minutes += amount 
@@ -75,11 +75,11 @@ def increase_time(time, amount):  # will be used to create the output_text in wo
 
     return f"{hours:02d}:{minutes:02d}" 
 
-def time_str_to_decimal(time_str):
+def time_str_to_decimal(time_str: str):
     hours, minutes = map(int, time_str.split(":")) #Yes yes i know this shit could be inside increase_time 
     return hours + minutes / 60                 
 
-def work_logs(service_order, interval, date, starting_time, ending_time, choice=""):
+def work_logs(service_order: str, interval: str, date: str, starting_time: str, ending_time: str, choice: str = ""):
     df = pd.read_csv(StringIO(interval), sep="\t", header=None, engine="python")
     df = df.reset_index()
     df["index"] = df["index"] + 1
@@ -191,7 +191,7 @@ def work_logs(service_order, interval, date, starting_time, ending_time, choice=
     return output_text
 
 
-def search_orders(search_input, search_output, number_of_lines):
+def search_orders(search_input: str, search_output: str, number_of_lines: str):
     text = search_input.get("1.0", tk.END).replace("\n", " ")
     pattern = r"\b621\d{5}\b"
     found = re.findall(pattern, text)
@@ -205,7 +205,7 @@ def search_orders(search_input, search_output, number_of_lines):
     else:
         messagebox.showwarning("Atenção", "Nenhuma ordem encontrada")
 
-def filters_and_equipments(search_input, search_output):
+def filters_and_equipments(search_input: str, search_output: str):
     equipment = search_input
     with open("info.json", encoding="utf-8") as file:
         fleet_data = json.load(file)
@@ -223,7 +223,7 @@ def copy_text(widget, window): #This allows the user to copy the output text, us
         messagebox.showwarning("Atenção", "Nada a ser copiado")
     
 
-def get_equipment_and_plan(os_number):
+def get_equipment_and_plan(os_number: str):
     os_number_str = str(os_number).strip()
     os_line = df_os[df_os["O.S"].astype(str).str.strip() == os_number_str]
 
@@ -237,7 +237,7 @@ def get_equipment_and_plan(os_number):
 
     return equipment, plan_list
 
-def fetch_plans(equipment, plans):
+def fetch_plans(equipment: str, plans: str):
     # Make sure the plans are integers
     df_matrix["no_ref_prog"] = pd.to_numeric(df_matrix["no_ref_prog"], errors="coerce")
     plans = [int(str(p).strip()) for p in plans]
@@ -269,7 +269,7 @@ def fetch_plans(equipment, plans):
     print(filtered_df)
     return filtered_df
 
-def split_tire_service(df): #mechanical_service actually means "any other service", too lazy to change it tho
+def split_tire_service(df: pd): #mechanical_service actually means "any other service", too lazy to change it tho
     if 10 not in df.columns: #DO NOT FUCKING TOUCH THIS
         for i in range(11):
             if i not in df.columns:
@@ -299,7 +299,7 @@ def split_tire_service(df): #mechanical_service actually means "any other servic
     
     return tire_service, general
 
-def split_auto_tire_service(df): #Same as above but works for auto logs generation
+def split_auto_tire_service(df: pd): #Same as above but works for auto logs generation
     df["de_sub_sist"] = df["de_sub_sist"].astype(str)
     df["de_tarefa"] = df["de_tarefa"].astype(str)
     tire_service_mask = (
