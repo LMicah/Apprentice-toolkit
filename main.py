@@ -1,6 +1,5 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
-import json
 from functions import (
     process_orders,
     process_text,
@@ -10,7 +9,7 @@ from functions import (
     fetch_plans,
     get_equipment_and_plan,
     split_auto_tire_service,
-    filters_and_equipments,
+    get_equipment_items,
 )
 
 
