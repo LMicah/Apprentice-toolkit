@@ -204,6 +204,10 @@ def work_logs(service_order: str, interval: str, date: str, starting_time: str, 
     if "-" in output_text:
         messagebox.showwarning("Atenção", "Conserte o horário inserido e pare de fazer cagada!.")
         return
+    elif "0,00" in output_text:
+        messagebox.showwarning("Atenção", "O tempo mínimo necessário para cada sequência é de um minuto, " \
+        "por favor, aumente o intervalo de tempo ou diminua a quantidade de sequências.")
+        return
     return output_text
 
 
