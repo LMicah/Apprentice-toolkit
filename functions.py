@@ -2,12 +2,24 @@ import tkinter as tk
 from tkinter import messagebox
 import pandas as pd
 import re
-import json
 from io import StringIO
-df_matrix = pd.read_csv("matriz.csv", sep=";", encoding="latin1", low_memory=False)
-df_os = pd.read_csv("os.csv", sep=";", encoding="latin1", low_memory=False)
 
-def process_orders(input_text: str , separator_entry: str, output_text: str):
+
+#### Import and loading of necessary files #####
+
+try:
+    df_matrix = pd.read_csv("matriz.csv", sep=";", encoding="latin1", low_memory=False)
+    df_os = pd.read_csv("os.csv", sep=";", encoding="latin1", low_memory=False)
+    bd_filters = pd.read_excel("planilha.xlsx", sheet_name="BD_FILTROS")
+    stock= pd.read_excel("planilha.xlsx", sheet_name="Saldo Almoxarifado")
+    itens_prices = pd.read_excel("planilha.xlsx", sheet_name="Valor das peças")
+except ValueError:
+    pass ##Intended for third-party testers
+
+#### Import and loading of necessary files ######
+
+
+def process_orders(input_text: str , separator_entry: str, output_text: str)-> None:
     orders_pattern = r"\b621\d{5}\b"
     orders = input_text.get("1.0", tk.END)
     orders = re.findall(orders_pattern, orders)
@@ -26,7 +38,7 @@ def process_orders(input_text: str , separator_entry: str, output_text: str):
     output_text.insert(tk.END, new_orders)
 
 
-def process_text(ptext_input: str, separator_entry: str, space_choice: bool, output_text: str):
+def process_text(ptext_input: str, separator_entry: str, space_choice: bool, output_text: str)-> None:
     text = ptext_input.get("1.0", tk.END).strip()
     lines = text.split("\n")
 
@@ -59,7 +71,7 @@ def process_text(ptext_input: str, separator_entry: str, space_choice: bool, out
     output_text.insert(tk.END, new_text)
 
 
-def increase_time(time: str, amount: int):  # will be used to create the output_text in work_logs 
+def increase_time(time: str, amount: int)->str:  # will be used to create the output_text in work_logs 
     hours = int(time[:2]) #first two characters (dont touch this if its passing the regex the convertion will be fine)
     minutes = int(time[-2:]) #last two chracters (same as above)
     minutes += amount 
@@ -195,7 +207,7 @@ def work_logs(service_order: str, interval: str, date: str, starting_time: str, 
     return output_text
 
 
-def search_orders(search_input: str, search_output: str, number_of_lines: str):
+def search_orders(search_input: str, search_output: str, number_of_lines: str)-> None:
     text = search_input.get("1.0", tk.END).replace("\n", " ")
     pattern = r"\b621\d{5}\b"
     found = re.findall(pattern, text)
@@ -210,15 +222,62 @@ def search_orders(search_input: str, search_output: str, number_of_lines: str):
         messagebox.showwarning("Atenção", "Nenhuma ordem encontrada")
         return
 
-def filters_and_equipments(search_input: str, search_output: str):
-    equipment = search_input
-    with open("info.json", encoding="utf-8") as file:
-        fleet_data = json.load(file)
-        dumpado = json.dumps(fleet_data, indent=4, ensure_ascii=False)
-        if equipment == fleet_data[equipment]:
-            ... 
+def get_equipment_items(bd_filters:pd.DataFrame, stock: pd.DataFrame, itens_prices: pd.DataFrame, choice=int)-> None:
+    #DISCLAIMER: DF STANDS FOR DATA FRAME AND PD FOR PANDAS 
 
-def copy_text(widget, window): #This allows the user to copy the output text, used in all frames
+    if not choice:
+        messagebox.showwarning("Atenção", "Por favor, insira uma frota")
+        return
+    
+    bd_filters = bd_filters.set_index("FROTA")        #↧
+    stock = stock.set_index("Material")               # Sets the correct index
+    itens_prices = itens_prices.set_index("Material") #↥
+
+    try:
+        equipment_items = bd_filters.loc[choice]         #Gets only the rows that matches with the choice var 
+    except KeyError:
+        messagebox.showwarning("Atenção", "Por favor, insira uma frota válida")  
+        return                                                   
+    equipment_items = equipment_items.reset_index() 
+
+
+    final_df = pd.merge( ## Merges both dataframes
+        equipment_items, #first df
+        itens_prices, #second df
+        left_on="Cod. Sap", #which column with same data to use from the first df
+        right_on="Material", #which column with same data to use from the second df
+        how="left" #looks for matchson the second dataframe using the specified columns
+    )
+
+
+    stock_quantity = stock[["Utilização livre"]] #gets the available stock column so we can merge (.join) it 
+    final_df = final_df.set_index(["Cod. Sap"])  #Sets the final_df index with the "Cod. Sap" column to make the join possible
+    final_df = final_df.join(stock_quantity, how="left") #joins stock_quantity to the right of final_df
+    final_df = final_df.reset_index() #resets the final_df index so we can use the "Cod. Sap" column in the desired_columns
+
+
+                    #The only columns we need from the final_df
+    desired_columns = ["PLANO REAL", "Tipo", "Sist.", "Sub.", "Componente", "Tipo da peça", 
+                    "Cod. Sap", "Texto breve material", "Tipo de MRP",  "QNTD.",  "Preço",
+                    "Utilização livre"]
+    final_df = final_df[desired_columns] #Filtering so the final_df contains only the desired_columns
+
+
+    for column in final_df.columns: #will clean missplaced "\n's"
+        if final_df[column].dtype == "object":
+            final_df[column] = final_df[column].astype(str).str.replace("\n", "")
+
+
+    final_df["Utilização livre"] = final_df["Utilização livre"].fillna(0).astype(int) 
+    # ↑↑↑↑↑ replaces every NaN (On the stock quantity column) with a 0 (float) and converts to int
+    final_df["QNTD."] = final_df["QNTD."].fillna(0) #Same as above but just fills NaN quantities
+    final_df["Preço"] = final_df["Preço"].fillna(0) #Same as above but just fills NaN prices
+    list_of_itens = final_df.values.tolist() #converts the dataframe to a list of lists containing the item data
+
+    return list_of_itens #will return the list of lists
+
+
+def copy_text(widget, window)-> None: #This allows the user to copy the output text, used in all frames
     text = widget.get("1.0", tk.END).strip()
     if text:
         window.clipboard_clear()
@@ -228,7 +287,7 @@ def copy_text(widget, window): #This allows the user to copy the output text, us
         messagebox.showwarning("Atenção", "Nada a ser copiado")
         return
 
-def get_equipment_and_plan(os_number: str):
+def get_equipment_and_plan(os_number: str)-> tuple:
     os_number_str = str(os_number).strip()
     os_line = df_os[df_os["O.S"].astype(str).str.strip() == os_number_str]
 
@@ -242,7 +301,7 @@ def get_equipment_and_plan(os_number: str):
 
     return equipment, plan_list
 
-def fetch_plans(equipment: str, plans: str):
+def fetch_plans(equipment: str, plans: str)-> pd.DataFrame:
     # Make sure the plans are integers
     df_matrix["no_ref_prog"] = pd.to_numeric(df_matrix["no_ref_prog"], errors="coerce")
     plans = [int(str(p).strip()) for p in plans]
@@ -274,7 +333,7 @@ def fetch_plans(equipment: str, plans: str):
     print(filtered_df)
     return filtered_df
 
-def split_tire_service(df: pd): #mechanical_service actually means "any other service", too lazy to change it tho
+def split_tire_service(df: pd) -> tuple: #mechanical_service actually means "any other service", too lazy to change it tho
     if 10 not in df.columns: #DO NOT FUCKING TOUCH THIS
         for i in range(11):
             if i not in df.columns:
@@ -304,7 +363,7 @@ def split_tire_service(df: pd): #mechanical_service actually means "any other se
     
     return tire_service, general
 
-def split_auto_tire_service(df: pd): #Same as above but works for auto logs generation
+def split_auto_tire_service(df: pd)-> tuple: #Same as above but works for auto logs generation
     df["de_sub_sist"] = df["de_sub_sist"].astype(str)
     df["de_tarefa"] = df["de_tarefa"].astype(str)
     tire_service_mask = (
