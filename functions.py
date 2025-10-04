@@ -226,7 +226,7 @@ def search_orders(search_input: str, search_output: str, number_of_lines: str)->
         messagebox.showwarning("Atenção", "Nenhuma ordem encontrada")
         return
 
-def get_equipment_items(bd_filters:pd.DataFrame, stock: pd.DataFrame, itens_prices: pd.DataFrame, choice=int)-> None:
+def get_equipment_items(choice: int, bd_filters=bd_filters, stock=stock, itens_prices=itens_prices)-> pd.DataFrame:
     #DISCLAIMER: DF STANDS FOR DATA FRAME AND PD FOR PANDAS 
 
     if not choice:
@@ -276,9 +276,8 @@ def get_equipment_items(bd_filters:pd.DataFrame, stock: pd.DataFrame, itens_pric
     # ↑↑↑↑↑ replaces every NaN (On the stock quantity column) with a 0 (float) and converts to int
     final_df["QNTD."] = final_df["QNTD."].fillna(0) #Same as above but just fills NaN quantities
     final_df["Preço"] = final_df["Preço"].fillna(0) #Same as above but just fills NaN prices
-    list_of_itens = final_df.values.tolist() #converts the dataframe to a list of lists containing the item data
+    return final_df
 
-    return list_of_itens #will return the list of lists
 
 
 def copy_text(widget, window)-> None: #This allows the user to copy the output text, used in all frames
