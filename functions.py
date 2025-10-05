@@ -261,7 +261,7 @@ def get_equipment_items(choice: int, bd_filters=bd_filters, stock=stock, itens_p
 
 
                     #The only columns we need from the final_df
-    desired_columns = ["PLANO REAL", "Tipo", "Sist.", "Sub.", "Componente", "Tipo da peça", 
+    desired_columns = ["PLANO REAL", "Tipo da peça", 
                     "Cod. Sap", "Texto breve material", "Tipo de MRP",  "QNTD.",  "Preço",
                     "Utilização livre"]
     final_df = final_df[desired_columns] #Filtering so the final_df contains only the desired_columns
