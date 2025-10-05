@@ -668,14 +668,56 @@ class App:
 
         return frame
 
+    def run_filters_search(self): #decided to change things structure a bit
+        choice = self.equipment_to_use.get()
+        try:
+            choice = int(choice)
+        except ValueError:
+            messagebox.showwarning("Atenção", "Por favor, insira apenas valores numéricos.")
+            return
+
+        itens_result = get_equipment_items(choice)
+        itens_str = itens_result.to_csv(
+            header=False,
+            index=False,
+            sep="\t"
+        )
+
+        self.filters_output.delete("1.0", tk.END)
+        self.filters_output.insert(tk.END, itens_str)
+
     def create_filters_frame(self):
         frame = tk.Frame(self.root, bg="#2b2b2b")
         frame.place(relwidth=1, relheight=1)
 
-        label = ttk.Label(frame, text="Filtros x Frota (WIP)", font=("Arial", 20))
-        label.pack(pady=50)
 
+        label = ttk.Label(frame, text="Insira a frota do equipamento: ", font=("Arial", 20))
+        label.pack(pady=20)
+        self.equipment_to_use = ttk.Entry(frame, width=25)
+        self.equipment_to_use.pack(pady=0)
         
+        self.filters_output = tk.Text(
+            frame,
+            height=27,
+            width=100,
+            bg="#3c3f41",
+            fg="#00ff00",
+            insertbackground="white",
+            font=("Consolas", 12),
+            wrap="word",
+        )
+
+        ttk.Button(
+            frame,
+            text= "Procurar",
+            command=lambda: (
+            self.run_filters_search()
+            ),
+        ).pack(pady=10)
+
+        self.filters_output.pack(padx=10, pady=10)
+
+
         ttk.Button(
             frame,
             text="⬅ Voltar ao menu",
@@ -684,6 +726,7 @@ class App:
             ),
         ).pack(pady=10) 
 
+        self.equipment_to_use.bind("<Return>", lambda event: self.run_filters_search())
         return frame
     
 if __name__ == "__main__":
