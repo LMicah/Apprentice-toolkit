@@ -677,14 +677,22 @@ class App:
             return
 
         itens_result = get_equipment_items(choice)
-        itens_str = itens_result.to_csv(
-            header=False,
+        itens_rows = itens_result.to_csv(
+            header=True,
             index=False,
             sep="\t"
-        )
-
+        ).strip().split("\n")
+        
         self.filters_output.delete("1.0", tk.END)
-        self.filters_output.insert(tk.END, itens_str)
+
+        #dividing even from odd rows
+        for i, row in enumerate(itens_rows):
+            if i % 2 == 0:
+                tag_to_use = "even_row"
+            else:
+                tag_to_use = "odd_row"
+            
+            self.filters_output.insert(tk.END, row + "\n", tag_to_use)
 
     def create_filters_frame(self):
         frame = tk.Frame(self.root, bg="#2b2b2b")
@@ -699,7 +707,7 @@ class App:
         self.filters_output = tk.Text(
             frame,
             height=27,
-            width=100,
+            width=120,
             bg="#3c3f41",
             fg="#00ff00",
             insertbackground="white",
@@ -707,6 +715,10 @@ class App:
             wrap="word",
         )
 
+        #Will change the output text color and size to make identifying rows easier
+        self.filters_output.tag_configure("odd_row", background="#3c3f41", foreground="#ffffff", font=("Consolas", 12))
+        self.filters_output.tag_configure("even_row", background="#2b2b2b", foreground="#ffffff", font=("Consolas", 12))
+        
         ttk.Button(
             frame,
             text= "Procurar",
