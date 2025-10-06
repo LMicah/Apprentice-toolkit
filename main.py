@@ -670,6 +670,7 @@ class App:
 
     def run_filters_search(self): #decided to change things structure a bit
         choice = self.equipment_to_use.get()
+
         try:
             choice = int(choice)
         except ValueError:
@@ -677,22 +678,30 @@ class App:
             return
 
         itens_result = get_equipment_items(choice)
-        itens_rows = itens_result.to_csv(
-            header=True,
-            index=False,
-            sep="\t"
-        ).strip().split("\n")
+        itens_result["Preço"] = itens_result["Preço"].apply(
+            lambda x: f'R${x:,.2f}'.
+            replace(',', 'X').
+            replace('.', ',').
+            replace('X', '.')
+        )
         
+        itens_result = itens_result.to_string(index=False)
+        itens_rows = itens_result.strip().split("\n")
+
+        self.filters_output.config(state="normal")
         self.filters_output.delete("1.0", tk.END)
 
-        #dividing even from odd rows
         for i, row in enumerate(itens_rows):
-            if i % 2 == 0:
+            if i == 0:
+                tag_to_use = "first_row"
+            elif i % 2 == 0:
                 tag_to_use = "even_row"
             else:
                 tag_to_use = "odd_row"
-            
+
             self.filters_output.insert(tk.END, row + "\n", tag_to_use)
+
+        self.filters_output.config(state="disabled")
 
     def create_filters_frame(self):
         frame = tk.Frame(self.root, bg="#2b2b2b")
@@ -713,12 +722,23 @@ class App:
             insertbackground="white",
             font=("Consolas", 12),
             wrap="word",
+            selectbackground="light blue",
+            selectforeground="black",
+            state="disabled"
         )
 
+        #Allow the user to manually copy the output text
+        self.filters_output.bind("<1>", lambda event: self.filters_output.focus_set())
+
         #Will change the output text color and size to make identifying rows easier
-        self.filters_output.tag_configure("odd_row", background="#3c3f41", foreground="#ffffff", font=("Consolas", 12))
-        self.filters_output.tag_configure("even_row", background="#2b2b2b", foreground="#ffffff", font=("Consolas", 12))
-        
+        self.filters_output.tag_configure("first_row", background="#2b2b2b", foreground="#da46f4", font=("Consolas", 8))
+        self.filters_output.tag_configure("odd_row", background="#3c3f41", foreground="#ffffff", font=("Consolas", 8))
+        self.filters_output.tag_configure("even_row", background="#2b2b2b", foreground="#ffffff", font=("Consolas", 8))
+
+        #
+        self.filters_output.tag_raise("sel") 
+
+
         ttk.Button(
             frame,
             text= "Procurar",
