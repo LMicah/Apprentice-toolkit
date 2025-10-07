@@ -17,7 +17,7 @@ class App:
     def __init__(self, root):
         self.root = root
         self.root.title("Toolkit do aprendiz")
-        self.root.geometry("900x800")
+        self.root.geometry("990x800")
         self.root.config(bg="#000000")
 
         self.setup_style()
@@ -678,13 +678,6 @@ class App:
             return
 
         itens_result = get_equipment_items(choice)
-        itens_result["Preço"] = itens_result["Preço"].apply(
-            lambda x: f'R${x:,.2f}'.
-            replace(',', 'X').
-            replace('.', ',').
-            replace('X', '.')
-        )
-        
         itens_result = itens_result.to_string(index=False)
         itens_rows = itens_result.strip().split("\n")
 
@@ -731,9 +724,9 @@ class App:
         self.filters_output.bind("<1>", lambda event: self.filters_output.focus_set())
 
         #Will change the output text color and size to make identifying rows easier
-        self.filters_output.tag_configure("first_row", background="#2b2b2b", foreground="#da46f4", font=("Consolas", 8))
-        self.filters_output.tag_configure("odd_row", background="#3c3f41", foreground="#ffffff", font=("Consolas", 8))
-        self.filters_output.tag_configure("even_row", background="#2b2b2b", foreground="#ffffff", font=("Consolas", 8))
+        self.filters_output.tag_configure("first_row", background="#2b2b2b", foreground="#da46f4", font=("Consolas", 11))
+        self.filters_output.tag_configure("odd_row", background="#3c3f41", foreground="#ffffff", font=("Consolas", 11))
+        self.filters_output.tag_configure("even_row", background="#2b2b2b", foreground="#ffffff", font=("Consolas", 11))
 
         #
         self.filters_output.tag_raise("sel") 
