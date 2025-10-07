@@ -1,4 +1,5 @@
 from functions import process_orders, process_text, search_orders
+import pandas as pd
 from unittest.mock import MagicMock
 
 class FakeText:
@@ -24,18 +25,18 @@ class FakeLabel:
         self.text = text
 
 def test_process_orders_with_separator():
-    input_text = FakeText("1234567890")
+    input_text = FakeText("62134598 62130089")
     separator_entry = FakeEntry(";")
     output_text = FakeText()
     process_orders(input_text, separator_entry, output_text)
-    assert output_text.content == "12345678;90"
+    assert output_text.content == "62134598;62130089"
 
 def test_process_orders_default_separator():
-    input_text = FakeText("123456789")
+    input_text = FakeText("62134598, 62130089")
     separator_entry = FakeEntry("")
     output_text = FakeText()
     process_orders(input_text, separator_entry, output_text)
-    assert output_text.content == "12345678,9"
+    assert output_text.content == "62134598,62130089"
 
 def test_process_orders_empty(monkeypatch):
     input_text = FakeText("")
@@ -87,3 +88,4 @@ def test_search_orders_not_found(monkeypatch):
     search_orders(search_input, search_output, number_of_lines)
     assert search_output.content == ""
     fake_showwarning.assert_called_once()
+
