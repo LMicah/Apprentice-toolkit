@@ -262,8 +262,9 @@ def get_equipment_items(choice: int, bd_filters=bd_filters, stock=stock, itens_p
 
                     #The only columns we need from the final_df
     desired_columns = ["PLANO REAL", "Tipo da peça", 
-                    "Cod. Sap", "Texto breve material", "Tipo de MRP",  "QNTD.",  "Preço",
-                    "Utilização livre"]
+                       "Cod. Sap", "Texto breve material",
+                       "Tipo de MRP",  "QNTD.",]
+    
     final_df = final_df[desired_columns] #Filtering so the final_df contains only the desired_columns
 
 
@@ -271,11 +272,7 @@ def get_equipment_items(choice: int, bd_filters=bd_filters, stock=stock, itens_p
         if final_df[column].dtype == "object":
             final_df[column] = final_df[column].astype(str).str.replace("\n", "")
 
-
-    final_df["Utilização livre"] = final_df["Utilização livre"].fillna(0).astype(int) 
-    # ↑↑↑↑↑ replaces every NaN (On the stock quantity column) with a 0 (float) and converts to int
-    final_df["QNTD."] = final_df["QNTD."].fillna(0) #Same as above but just fills NaN quantities
-    final_df["Preço"] = final_df["Preço"].fillna(0) #Same as above but just fills NaN prices
+    final_df["QNTD."] = final_df["QNTD."].fillna(0).astype(int)
     return final_df
 
 
