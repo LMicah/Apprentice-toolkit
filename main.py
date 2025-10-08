@@ -669,32 +669,58 @@ class App:
         return frame
 
     def run_filters_search(self): #decided to change things structure a bit
-        choice = self.equipment_to_use.get()
+            """
+            Handles the logic for the "Consulta filtros x frota" screen.
+            It gets the equipment fleet number from the user, validates it,
+            fetches the corresponding items using an external function,
+            and displays the results in a formatted Text widget with alternating row colors.
+            """
+            # Get the equipment fleet number from the input Entry widget.
+            choice = self.equipment_to_use.get()
 
-        try:
-            choice = int(choice)
-        except ValueError:
-            messagebox.showwarning("Atenção", "Por favor, insira apenas valores numéricos.")
-            return
+            try:
+                # Attempt to convert the input string to an integer.
+                choice = int(choice)
+            except ValueError:
+                # If conversion fails (e.g., input contains non-numeric characters),
+                # show a warning message to the user and stop the function execution.
+                messagebox.showwarning("Atenção", "Por favor, insira apenas valores numéricos.")
+                return
 
-        itens_result = get_equipment_items(choice)
-        itens_result = itens_result.to_string(index=False)
-        itens_rows = itens_result.strip().split("\n")
+            # Call the external function to fetch the equipment items/filters based on the fleet number.
+            # This function is expected to return a pandas DataFrame.
+            itens_result = get_equipment_items(choice)
+            
+            # Convert the DataFrame to a string, without the DataFrame index, for display.
+            itens_result = itens_result.to_string(index=False)
+            
+            # Strip any leading/trailing whitespace and split the string into a list of lines.
+            itens_rows = itens_result.strip().split("\n")
 
-        self.filters_output.config(state="normal")
-        self.filters_output.delete("1.0", tk.END)
+            # Temporarily enable the Text widget to allow inserting new content.
+            self.filters_output.config(state="normal")
+            
+            # Clear any previous results from the Text widget.
+            self.filters_output.delete("1.0", tk.END)
 
-        for i, row in enumerate(itens_rows):
-            if i == 0:
-                tag_to_use = "first_row"
-            elif i % 2 == 0:
-                tag_to_use = "even_row"
-            else:
-                tag_to_use = "odd_row"
+            # Iterate over each row with its index to apply specific styling tags.
+            for i, row in enumerate(itens_rows):
+                # Determine which tag to use based on the row's position.
+                if i == 0:
+                    # The first row (i=0) is the header, apply the 'first_row' tag.
+                    tag_to_use = "first_row"
+                elif i % 2 == 0:
+                    # Even-numbered data rows get the 'even_row' tag.
+                    tag_to_use = "even_row"
+                else:
+                    # Odd-numbered data rows get the 'odd_row' tag.
+                    tag_to_use = "odd_row"
 
-            self.filters_output.insert(tk.END, row + "\n", tag_to_use)
+                # Insert the current row followed by a newline into the Text widget, applying the chosen tag.
+                self.filters_output.insert(tk.END, row + "\n", tag_to_use)
 
-        self.filters_output.config(state="disabled")
+            # Disable the Text widget again to make it read-only for the user.
+            self.filters_output.config(state="disabled")
 
     def create_filters_frame(self):
         frame = tk.Frame(self.root, bg="#2b2b2b")
