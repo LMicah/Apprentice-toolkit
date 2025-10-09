@@ -122,9 +122,12 @@ class App:
         self.wlog_output.insert(tk.END, logs)
 
         # Menu config
-    def clear_fields(
-        self, *widgets
-    ):  # Used to clear all the input fields when the user clicks on the menu button
+    def clear_fields(self, *widgets ):  
+        """
+        Clears all the (selected) tkinker widgets
+        Made to delete every type of input when the user changes gui
+        Will be used on menu buttons
+        """
         for widget in widgets:
             if isinstance(widget, tk.Entry) or isinstance(widget, ttk.Entry):
                 widget.delete(0, tk.END)
