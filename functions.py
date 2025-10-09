@@ -5,7 +5,7 @@ import re
 from io import StringIO
 
 
-#### Import and loading of necessary files #####
+#### Imports and load the necessary files #####
 
 try:
     df_matrix = pd.read_csv("matriz.csv", sep=";", encoding="latin1", low_memory=False)
@@ -16,7 +16,8 @@ try:
 except ValueError:
     pass ##Intended for third-party testers
 
-#### Import and loading of necessary files ######
+#### Except actually only works if you try to run the main.py in an IDE, any ######
+#### attempts to run the .exe pyinstaller file will still result in crashing ######
 
 
 def process_orders(input_text: str , separator_entry: str, output_text: str)-> None:
