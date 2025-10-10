@@ -342,11 +342,20 @@ def split_tire_service(df: pd) -> tuple: #mechanical_service actually means "any
 
     df[10] = df[10].astype(str)
     df[6] = df[6].astype(str)
+
+    column_2_is_nan = df[2].isna().all()
+    if column_2_is_nan:
+        df.drop(2, axis=1, inplace=True)
+        df[10] = df[10].astype(str)
+        df[6] = df[6].astype(str)
+        df.rename(columns={10:14, 12:10, 6:2, 8:6, 7:8}, inplace=True)
+
     tire_service_mask = (
+    (df[6].str.contains("Verificar integridade das rodas", case=False, na=False))|
     (df[10].str.strip().isin(["Roda", "Pneu"])) & 
     (~df[6].str.contains("Verificar integridade|Verificar a integridade|suspensões|Sistema de freio", case=False, na=False))&
     (~df[6].str.contains("Quando houver espaçador, retirar rodas", case=False, na=False))|
-    (df[6].str.contains("pneus|pneu", case=False, na=False)) &
+    (df[6].str.contains("pneus|pneu|verificar torque das porcas das rodas.", case=False, na=False)) &
     (~df[6].str.contains("pneum", case=False, na=False))|
     (df[6].str.contains("borracharia", case=False, na=False)) & 
     (~df[6].str.contains("Verificar integridade|Verificar a integridade", case=False, na=False))
