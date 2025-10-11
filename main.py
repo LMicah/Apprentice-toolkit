@@ -542,7 +542,7 @@ class App:
 
         tk.Label(frame, text="Confira o que mudou desde a última versão: ", bg="#2b2b2b", fg="#a20290", font=("Segoe UI", 15, "bold")).pack(padx=10, pady=50)
         
-        # Hardcoded changelog text. In a larger app, this might be loaded from a file.
+        # Hardcoded changelog text. Will change soon.
         changelog_text = """
 - 🛠️ Adicionado suporte a multiplos intervalos para a geração de apontamentos.
 - 🛠️ Adicionado suporte ao plano de manutenção para a geração de apontamentos.
