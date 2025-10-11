@@ -5,41 +5,81 @@ import re
 from io import StringIO
 
 
-#### Imports and load the necessary files #####
+# --- Global Data Loading ---
+# NOTE: Loading dataframes globally is generally not recommended as it creates hidden dependencies
+# and makes functions harder to test independently. This section is kept for compatibility with the
+# original project structure, but a refactor to pass dataframes as arguments or use a dedicated
+# data loading class would be a significant improvement.
+# I will do my best to refactor this in a more secure/clean way later, i just need the time to do so.
 
 try:
+    # Attempt to load CSV and Excel files required by various functions.
     df_matrix = pd.read_csv("matriz.csv", sep=";", encoding="latin1", low_memory=False)
     df_os = pd.read_csv("os.csv", sep=";", encoding="latin1", low_memory=False)
     bd_filters = pd.read_excel("planilha.xlsx", sheet_name="BD_FILTROS")
-    stock= pd.read_excel("planilha.xlsx", sheet_name="Saldo Almoxarifado")
+    stock = pd.read_excel("planilha.xlsx", sheet_name="Saldo Almoxarifado")
     itens_prices = pd.read_excel("planilha.xlsx", sheet_name="Valor das peças")
-except ValueError:
-    pass ##Intended for third-party testers
+except FileNotFoundError:
+    # This pass is intended to allow the application to run in environments where
+    # these specific data files are not present (e.g., for third-party testing).
+    # However, functions depending on these dataframes will fail if called.
+    pass
 
-#### Except actually only works if you try to run the main.py in an IDE, any ######
-#### attempts to run the .exe pyinstaller file will still result in crashing ######
 
+def process_orders(input_text: tk.Text, separator_entry: tk.Entry, output_text: tk.Text) -> None:
+    """
+    Finds all valid service order numbers from an input widget, joins them with a
+    specified separator, and displays the result in an output widget.
 
-def process_orders(input_text: str , separator_entry: str, output_text: str)-> None:
+    A valid service order is defined by the regex pattern `\\b621\\d{5}\\b`.
+
+    Args:
+        input_text (tk.Text): The Tkinter Text widget containing the raw text with service orders.
+        separator_entry (tk.Entry): The Tkinter Entry widget for the desired separator.
+                                      If empty, a comma "," is used by default.
+        output_text (tk.Text): The Tkinter Text widget where the formatted string of
+                               service orders will be displayed.
+    """
+    # Define the regex pattern for a valid service order (starts with 621 followed by 5 digits).
     orders_pattern = r"\b621\d{5}\b"
-    orders = input_text.get("1.0", tk.END)
-    orders = re.findall(orders_pattern, orders)
+    
+    # Get text from the input widget and find all matching orders.
+    text_content = input_text.get("1.0", tk.END)
+    orders = re.findall(orders_pattern, text_content)
 
+    # Get the user-defined separator, defaulting to "," if empty.
     separator = separator_entry.get()
-    if separator == "":
+    if not separator:
         separator = ","
 
+    # Join the found orders into a single string.
     new_orders = separator.join(orders)
 
+    # If no orders were found, show a warning and exit.
     if not new_orders:
         messagebox.showwarning("Atenção", "Não existe nenhuma ordem a ser processada")
         return
 
+    # Clear the output widget and insert the processed orders.
     output_text.delete("1.0", tk.END)
     output_text.insert(tk.END, new_orders)
 
 
-def process_text(ptext_input: str, separator_entry: str, space_choice: bool, output_text: str)-> None:
+def process_text(ptext_input: tk.Text, separator_entry: tk.Entry, space_choice: bool, output_text: tk.Text) -> None:
+    """
+    Processes a block of text by joining its content with a specified separator.
+    It can either replace all whitespace with the separator or only newlines,
+    based on the `space_choice` flag.
+
+    Args:
+        ptext_input (tk.Text): The Tkinter Text widget with the text to process.
+        separator_entry (tk.Entry): The Tkinter Entry widget for the separator.
+                                      Defaults to ", " if empty.
+        space_choice (bool): If True, preserves spaces within lines and only replaces
+                             newlines with the separator. If False, replaces all
+                             whitespace (spaces and newlines) with the separator.
+        output_text (tk.Text): The Tkinter Text widget to display the result.
+    """
     text = ptext_input.get("1.0", tk.END).strip()
     lines = text.split("\n")
 
@@ -48,247 +88,307 @@ def process_text(ptext_input: str, separator_entry: str, space_choice: bool, out
         separator = ", "
 
     new_text = ""
-    last_is_space = False  # used to check for multiple blank spaces
+    last_is_space = False  # Flag to prevent multiple separators for consecutive spaces.
 
     for line in lines:
         line = line.strip()
         for char in line:
+            # If space replacement is enabled and the character is a space...
             if char == " " and not space_choice:
+                # Add separator only if the previous character wasn't also a space.
                 if not last_is_space:
                     new_text += separator
                     last_is_space = True
             else:
                 new_text += char
                 last_is_space = False
-
+        
+        # Add a separator after each processed line (which originally was a newline).
         new_text += separator
 
     if not text:
         messagebox.showwarning("Atenção", "Nenhum texto inserido")
         return
-    elif new_text.endswith(separator):
+    
+    # Clean up any trailing separator at the end of the final string.
+    if new_text.endswith(separator):
         new_text = new_text[: -len(separator)]
+        
     output_text.delete("1.0", tk.END)
     output_text.insert(tk.END, new_text)
 
 
-def increase_time(time: str, amount: int)->str:  # will be used to create the output_text in work_logs 
-    hours = int(time[:2]) #first two characters (dont touch this if its passing the regex the convertion will be fine)
-    minutes = int(time[-2:]) #last two chracters (same as above)
-    minutes += amount 
+def increase_time(time_str: str, minutes_to_add: int) -> str:
+    """
+    Increments a time string (HH:MM) by a given number of minutes.
 
+    Args:
+        time_str (str): The initial time in "HH:MM" format.
+        minutes_to_add (int): The number of minutes to add to the time.
+
+    Returns:
+        str: The new time in "HH:MM" format.
+    """
+    hours = int(time_str[:2])
+    minutes = int(time_str[-2:])
+    minutes += minutes_to_add
+
+    # Handle minute overflow by converting to hours.
     while minutes >= 60:
         hours += 1
         minutes -= 60
 
-    return f"{hours:02d}:{minutes:02d}" 
+    return f"{hours:02d}:{minutes:02d}"
 
-def time_str_to_decimal(time_str: str):
-    hours, minutes = map(int, time_str.split(":")) #Yes yes i know this shit could be inside increase_time 
-    return hours + minutes / 60                 
 
-def work_logs(service_order: str, interval: str, date: str, starting_time: str, ending_time: str, choice: str = ""):
+def time_str_to_decimal(time_str: str) -> float:
+    """
+    Converts a time string (HH:MM) into a decimal representation of hours.
+    Example: "01:30" becomes 1.5.
 
-    interval_quantity = 0
-    intervals = None
-    real_hours = 0
-    real_minutes = 0
-    available_time = 0
-    output_text = ""
+    Args:
+        time_str (str): The time string to convert.
+
+    Returns:
+        float: The decimal representation of the hours.
+    """
+    hours, minutes = map(int, time_str.split(":"))
+    return hours + minutes / 60
+
+
+def work_logs(service_order: str, interval_str: str, date: str, starting_time: str, ending_time: str, choice: str = "") -> str:
+    """
+    Generates formatted work log entries for a given time period and sequence intervals.
+
+    The function parses sequence intervals from various formats (e.g., "1-5", "1 2 3",
+    or newline-separated values). It then divides the total time available equally
+    among the sequences and generates a tab-separated string for each log entry.
+
+    Args:
+        service_order (str): The service order number.
+        interval_str (str): A string containing sequence numbers. Can be a range ("1-5"),
+                            space-separated ("1 2 3"), or newline-separated.
+        date (str): The date for the logs, expected in "dd/mm/yyyy" format.
+        starting_time (str): The start time for the logs, in "hh:mm" format.
+        ending_time (str): The end time for the logs, in "hh:mm" format.
+        choice (str, optional): An optional flag, typically "tire_service", to handle
+                                specific processing logic if needed. Defaults to "".
+
+    Returns:
+        str: A formatted string containing all generated work log entries, separated by newlines,
+             or None if an error occurs.
+    """
+    # --- Input Validation and Sanitization ---
     date_pattern = r"^(\d{2})[\/]?(\d{2})[\/]?(\d{4})$"
     time_pattern = r"^(\d{2})[\:]?(\d{2})$"
-    total_interval = []
+    
+    if not service_order:
+        messagebox.showwarning("Atenção", "Por favor, insira uma ordem de serviço")
+        return
+
+    service_order = service_order.strip()
+    
     r_date = re.search(date_pattern, date.strip())
     s_time = re.search(time_pattern, starting_time.strip())
     e_time = re.search(time_pattern, ending_time.strip())
 
-
-    if not service_order:
-        messagebox.showwarning("Atenção", "Por favor, insira uma ordem de serviço")
-        return
-    service_order = service_order.strip()
-    
-
-    try:
-        start, end = map(int, interval.split("-"))
-        interval_quantity = abs(end - start) + 1
-    except (ValueError, AttributeError):
-        try:
-            if " " in interval:
-                intervalsx = interval.split()
-                for intervalx in intervalsx:
-                    if "-" in intervalx:  
-                        s, e = intervalx.split("-")
-                        for c in range(int(s), int(e) + 1):
-                            total_interval.append(c)
-                    else:
-                        total_interval.append(int(intervalx))
-            elif "\n" in interval:
-                intervals = [
-                    line.strip()
-                    for line in interval.strip().split("\n")
-                    if line.strip()
-                ]
-        except (ValueError, AttributeError):
-            df = pd.read_csv(StringIO(interval), sep="\t", header=None, engine="python")
-            df = df.reset_index()
-            df["index"] = df["index"] + 1
-            tire_service, general = split_tire_service(df)
-
-            if choice == "tire_service":
-                if not tire_service:
-                    messagebox.showwarning("Atenção", "Essa ordem de serviço não possui serviços de borracharia.")
-                    return
-                else:
-                    total_interval = [str(x) for x in tire_service]
-            else:
-                total_interval = [str(x) for x in general]
-
-    if r_date:
-        day   = r_date.group(1)
-        month = r_date.group(2)
-        year  = r_date.group(3)
-        if "/" not in r_date.group(0):
-            date = f"{day}/{month}/{year}"
-    else:
+    if not r_date:
         messagebox.showwarning("Atenção", "Por favor, insira uma data válida.")
         return
-
-    
-    if s_time and e_time:
-        starting_hours   = int(s_time.group(1)) 
-        starting_minutes = int(s_time.group(2))
-        ending_hours     = int(e_time.group(1))
-        ending_minutes   = int(e_time.group(2))
-    else:
+    if not s_time or not e_time:
         messagebox.showwarning("Atenção", "Por favor, insira um intervalo de tempo válido.")
-        return 
+        return
 
-    
-   
-    real_hours = ending_hours - starting_hours
-    real_minutes = ending_minutes - starting_minutes
-    if intervals:
-        available_time = (real_hours * 60 + real_minutes) / len(intervals)     #I will remake this entire monster later
-        for idx, available_interval in enumerate(intervals):                   #3 months later: i will never remake this
-            start_time = increase_time(starting_time, int(available_time * idx))
-            end_time = increase_time(starting_time, int(available_time * (idx + 1)))
-            total_hours = time_str_to_decimal(end_time) - time_str_to_decimal(start_time)
-            formatted_total_hours = f"{total_hours:.2f}".replace(".", ",")
+    # Reformat date to ensure it has slashes for consistency.
+    day, month, year = r_date.groups()
+    date = f"{day}/{month}/{year}"
 
-            output_text += f"{service_order}\t\t\t{available_interval}\t\t\t\t\t\t\t\t\t\t{date}\t{start_time}\t{date}\t{end_time}\t{formatted_total_hours}\n"
-    elif total_interval:
-        available_time = (real_hours * 60 + real_minutes) / len(total_interval)
-        for idx, available_interval in enumerate(total_interval):
-            start_time = increase_time(starting_time, int(available_time * idx))
-            end_time = increase_time(starting_time, int(available_time * (idx + 1)))
-
-            total_hours = time_str_to_decimal(end_time) - time_str_to_decimal(start_time)
-            formatted_total_hours = f"{total_hours:.2f}".replace(".", ",")
-
-            output_text += f"{service_order}\t\t\t{available_interval}\t\t\t\t\t\t\t\t\t\t{date}\t{start_time}\t{date}\t{end_time}\t{formatted_total_hours}\n"
-    else:
-        try:
-            available_time = (real_hours * 60 + real_minutes) / interval_quantity
-            for number in range(start, end + 1):
-                start_time = increase_time(starting_time, int(available_time * (number - start)))
-                end_time = increase_time(starting_time, int(available_time * (number - start + 1)))
-
-                total_hours = time_str_to_decimal(end_time) - time_str_to_decimal(start_time)
-                formatted_total_hours = f"{total_hours:.2f}".replace(".", ",")
-
-                output_text += f"{service_order}\t\t\t{number}\t\t\t\t\t\t\t\t\t\t{date}\t{start_time}\t{date}\t{end_time}\t{formatted_total_hours}\n"
-        except ZeroDivisionError:
+    # --- Interval Parsing ---
+    total_interval = []
+    try:
+        # Case 1: Simple range format, e.g., "1-5"
+        start, end = map(int, interval_str.split("-"))
+        total_interval = list(range(start, end + 1))
+    except (ValueError, AttributeError):
+        # Case 2: Space or newline separated values, possibly with ranges mixed in.
+        cleaned_interval_str = interval_str.strip()
+        if " " in cleaned_interval_str or "\n" in cleaned_interval_str:
+            items = re.split(r'[\s\n]+', cleaned_interval_str)
+            for item in items:
+                if "-" in item:
+                    s, e = map(int, item.split("-"))
+                    total_interval.extend(list(range(s, e + 1)))
+                elif item:
+                    total_interval.append(int(item))
+        else:
             messagebox.showwarning("Atenção", "Insira um intervalo de sequência válido.")
             return
-        
-    if "-" in output_text:
+
+    if not total_interval:
+        messagebox.showwarning("Atenção", "Nenhuma sequência válida encontrada no intervalo.")
+        return
+
+    # --- Time Calculation ---
+    starting_hours, starting_minutes = map(int, s_time.groups())
+    ending_hours, ending_minutes = map(int, e_time.groups())
+    
+    total_minutes_available = (ending_hours - starting_hours) * 60 + (ending_minutes - starting_minutes)
+    
+    if total_minutes_available < 0:
         messagebox.showwarning("Atenção", "Conserte o horário inserido e pare de fazer cagada!.")
         return
-    elif "0,00" in output_text:
-        messagebox.showwarning("Atenção", "O tempo mínimo necessário para cada sequência é de um minuto, " \
-        "por favor, aumente o intervalo de tempo ou diminua a quantidade de sequências.")
+
+    try:
+        time_per_interval = total_minutes_available / len(total_interval)
+    except ZeroDivisionError:
+        messagebox.showwarning("Atenção", "O intervalo de sequências não pode estar vazio.")
         return
+    
+    if time_per_interval < 1:
+        messagebox.showwarning("Atenção", "O tempo mínimo necessário para cada sequência é de um minuto, " \
+      "por favor, aumente o intervalo de tempo ou diminua a quantidade de sequências.")
+        return
+
+    # --- Log Generation ---
+    output_text = ""
+    for idx, interval_num in enumerate(total_interval):
+        start_offset = int(time_per_interval * idx)
+        end_offset = int(time_per_interval * (idx + 1))
+        
+        log_start_time = increase_time(starting_time, start_offset)
+        log_end_time = increase_time(starting_time, end_offset)
+        
+        total_hours = time_str_to_decimal(log_end_time) - time_str_to_decimal(log_start_time)
+        formatted_total_hours = f"{total_hours:.2f}".replace(".", ",")
+        
+        output_text += f"{service_order}\t\t\t{interval_num}\t\t\t\t\t\t\t\t\t\t{date}\t{log_start_time}\t{date}\t{log_end_time}\t{formatted_total_hours}\n"
+        
     return output_text
 
 
-def search_orders(search_input: str, search_output: str, number_of_lines: str)-> None:
+def search_orders(search_input: tk.Text, search_output: tk.Text, number_of_lines_label: tk.Label) -> None:
+    """
+    Searches for valid service order numbers within a text widget and displays the
+    results in another widget, along with a count of found orders.
+
+    Args:
+        search_input (tk.Text): The widget containing the text to search through.
+        search_output (tk.Text): The widget where the found orders will be displayed.
+        number_of_lines_label (tk.Label): The label to update with the count of found orders.
+    """
     text = search_input.get("1.0", tk.END).replace("\n", " ")
     pattern = r"\b621\d{5}\b"
-    found = re.findall(pattern, text)
+    found_orders = re.findall(pattern, text)
 
     search_output.delete("1.0", tk.END)
 
-    if found:
-        result = " ".join(found)
+    if found_orders:
+        result = " ".join(found_orders)
         search_output.insert(tk.END, result)
-        number_of_lines.config(text= f"Quantidade de ordens encontradas: {len(found)}")
+        number_of_lines_label.config(text=f"Quantidade de ordens encontradas: {len(found_orders)}")
     else:
         messagebox.showwarning("Atenção", "Nenhuma ordem encontrada")
-        return
+        number_of_lines_label.config(text="Quantidade de ordens encontradas: 0")
 
-def get_equipment_items(choice: int, bd_filters=bd_filters, stock=stock, itens_prices=itens_prices)-> pd.DataFrame:
-    #DISCLAIMER: DF STANDS FOR DATA FRAME AND PD FOR PANDAS 
 
+def get_equipment_items(choice: int) -> pd.DataFrame:
+    """
+    Fetches and merges data related to equipment items based on a fleet number.
+
+    This function queries several pre-loaded pandas DataFrames (bd_filters, stock, itens_prices)
+    to compile a final DataFrame with details about parts, stock, and prices for a given
+    equipment fleet number.
+
+    Args:
+        choice (int): The fleet number of the equipment.
+
+    Returns:
+        pd.DataFrame: A DataFrame containing the filtered and merged information about
+                      the equipment's items. Returns an empty DataFrame or None on error.
+    """
     if not choice:
         messagebox.showwarning("Atenção", "Por favor, insira uma frota")
-        return
-    
-    bd_filters = bd_filters.set_index("FROTA")        #↧
-    stock = stock.set_index("Material")               # Sets the correct index
-    itens_prices = itens_prices.set_index("Material") #↥
+        return pd.DataFrame()
+
+    # Create copies to avoid modifying the global dataframes
+    local_bd_filters = bd_filters.set_index("FROTA")
+    local_stock = stock.set_index("Material")
+    local_itens_prices = itens_prices.set_index("Material")
 
     try:
-        equipment_items = bd_filters.loc[choice]         #Gets only the rows that matches with the choice var 
+        # Filter items for the selected fleet number.
+        equipment_items = local_bd_filters.loc[choice]
     except KeyError:
-        messagebox.showwarning("Atenção", "Por favor, insira uma frota válida")  
-        return                                                   
-    equipment_items = equipment_items.reset_index() 
+        messagebox.showwarning("Atenção", "Por favor, insira uma frota válida")
+        return pd.DataFrame()
+    
+    equipment_items = equipment_items.reset_index()
 
-
-    final_df = pd.merge( ## Merges both dataframes
-        equipment_items, #first df
-        itens_prices, #second df
-        left_on="Cod. Sap", #which column with same data to use from the first df
-        right_on="Material", #which column with same data to use from the second df
-        how="left" #looks for matchson the second dataframe using the specified columns
+    # Merge equipment items with their prices.
+    final_df = pd.merge(
+        equipment_items,
+        local_itens_prices,
+        left_on="Cod. Sap",
+        right_on="Material",
+        how="left"
     )
 
+    # Join the result with stock quantity information.
+    stock_quantity = local_stock[["Utilização livre"]]
+    final_df = final_df.set_index("Cod. Sap").join(stock_quantity, how="left").reset_index()
 
-    stock_quantity = stock[["Utilização livre"]] #gets the available stock column so we can merge (.join) it 
-    final_df = final_df.set_index(["Cod. Sap"])  #Sets the final_df index with the "Cod. Sap" column to make the join possible
-    final_df = final_df.join(stock_quantity, how="left") #joins stock_quantity to the right of final_df
-    final_df = final_df.reset_index() #resets the final_df index so we can use the "Cod. Sap" column in the desired_columns
+    # Define and filter for the columns required for the final output.
+    desired_columns = [
+        "PLANO REAL", "Tipo da peça", "Cod. Sap", "Texto breve material",
+        "Tipo de MRP", "QNTD."
+    ]
+    # Ensure all desired columns exist, adding missing ones with default values if necessary.
+    for col in desired_columns:
+        if col not in final_df.columns:
+            final_df[col] = None
 
+    final_df = final_df[desired_columns]
 
-                    #The only columns we need from the final_df
-    desired_columns = ["PLANO REAL", "Tipo da peça", 
-                       "Cod. Sap", "Texto breve material",
-                       "Tipo de MRP",  "QNTD.",]
-    
-    final_df = final_df[desired_columns] #Filtering so the final_df contains only the desired_columns
-
-
-    for column in final_df.columns: #will clean missplaced "\n's"
+    # Clean up newline characters from string columns.
+    for column in final_df.columns:
         if final_df[column].dtype == "object":
             final_df[column] = final_df[column].astype(str).str.replace("\n", "")
-
+    
+    # Sanitize quantity column.
     final_df["QNTD."] = final_df["QNTD."].fillna(0).astype(int)
+    
     return final_df
 
 
+def copy_text(widget: tk.Text, window: tk.Tk) -> None:
+    """
+    Copies the entire content of a Tkinter Text widget to the clipboard.
 
-def copy_text(widget, window)-> None: #This allows the user to copy the output text, used in all frames
+    Args:
+        widget (tk.Text): The Text widget from which to copy the content.
+        window (tk.Tk): The root Tkinter window, used to access the clipboard.
+    """
     text = widget.get("1.0", tk.END).strip()
     if text:
         window.clipboard_clear()
         window.clipboard_append(text)
-        window.update()
+        window.update()  # Required to make the clipboard content available immediately.
     else:
         messagebox.showwarning("Atenção", "Nada a ser copiado")
-        return
 
-def get_equipment_and_plan(os_number: str)-> tuple:
+
+def get_equipment_and_plan(os_number: str) -> tuple[str, list] | tuple[bool, bool]:
+    """
+    Retrieves the equipment model and maintenance plan(s) for a given service order number.
+
+    Args:
+        os_number (str): The service order number.
+
+    Returns:
+        tuple[str, list]: A tuple containing the equipment model (str) and a list of plan
+                          numbers (list of strings).
+        tuple[bool, bool]: Returns (False, False) if the service order is not found.
+    """
     os_number_str = str(os_number).strip()
     os_line = df_os[df_os["O.S"].astype(str).str.strip() == os_number_str]
 
@@ -296,100 +396,146 @@ def get_equipment_and_plan(os_number: str)-> tuple:
         return False, False
 
     equipment = str(os_line.iloc[0]["MODELO"]).strip()
-    plan = str(os_line.iloc[0]["PLANO"]).strip()
+    plan_str = str(os_line.iloc[0]["PLANO"]).strip()
 
-    plan_list = plan.split("/")
-
+    plan_list = plan_str.split("/")
     return equipment, plan_list
 
-def fetch_plans(equipment: str, plans: str)-> pd.DataFrame:
-    # Make sure the plans are integers
+
+def fetch_plans(equipment: str, plans: list[str]) -> pd.DataFrame:
+    """
+    Fetches maintenance tasks from the matrix based on equipment and plan numbers.
+
+    Args:
+        equipment (str): The equipment model identifier.
+        plans (list[str]): A list of maintenance plan numbers.
+
+    Returns:
+        pd.DataFrame: A DataFrame containing the filtered and cleaned maintenance tasks.
+                      Returns an empty DataFrame if no matching tasks are found.
+    """
+    # Ensure plan numbers are integers for correct filtering.
     df_matrix["no_ref_prog"] = pd.to_numeric(df_matrix["no_ref_prog"], errors="coerce")
-    plans = [int(str(p).strip()) for p in plans]
-    print(plans)
+    valid_plans = [int(p.strip()) for p in plans if p.strip().isdigit()]
 
-    # Filter by equipment
-    keys = [f"{equipment}{p}N" for p in plans]
+    # Create unique keys to filter the matrix dataframe.
+    keys = [f"{equipment}{p}N" for p in valid_plans]
     df_equipment = df_matrix[df_matrix["Chave"].isin(keys)]
-
 
     if df_equipment.empty:
         return pd.DataFrame()
 
-    # Exclude unwanted plans 
-    mask_blacklist = df_equipment["de_tp_manut"].str.upper().str.contains(
-        "INSPEÇÃO|INS |HIBERNAÇÃO|ATIVAÇÃO DA HIBERNAÇÃO", case= False, na=False
-    )
+    # Define a blacklist of maintenance types to exclude.
+    blacklist_pattern = "INSPEÇÃO|INS |HIBERNAÇÃO|ATIVAÇÃO DA HIBERNAÇÃO"
+    mask_blacklist = df_equipment["de_tp_manut"].str.upper().str.contains(blacklist_pattern, na=False)
 
+    # Apply all filters.
     filtered_df = df_equipment[
-        (df_equipment["no_ref_prog"].isin(plans)) &
+        (df_equipment["no_ref_prog"].isin(valid_plans)) &
         (df_equipment["fg_garantia"] == "N") &
         (~mask_blacklist)
-    ][["no_seq", "de_operacao", "de_tarefa", "de_sist_veic", "de_sub_sist", "de_compo"]]
+    ]
+    
+    # Select and clean the final columns.
+    final_columns = ["no_seq", "de_operacao", "de_tarefa", "de_sist_veic", "de_sub_sist", "de_compo"]
+    filtered_df = filtered_df[final_columns]
 
-    # Remove duplicates and generates a new sequence
-    filtered_df = filtered_df.drop_duplicates(subset=["de_operacao", "de_sist_veic", "de_sub_sist", "de_compo"])
-    filtered_df = filtered_df.reset_index(drop=True)
-    filtered_df["no_seq"] = range(1, len(filtered_df)+1)
-    print(filtered_df)
+    # Remove duplicates and re-generate sequence numbers to ensure they are consecutive.
+    subset_cols = ["de_operacao", "de_sist_veic", "de_sub_sist", "de_compo"]
+    filtered_df = filtered_df.drop_duplicates(subset=subset_cols).reset_index(drop=True)
+    filtered_df["no_seq"] = range(1, len(filtered_df) + 1)
+    
     return filtered_df
 
-def split_tire_service(df: pd) -> tuple: #mechanical_service actually means "any other service", too lazy to change it tho
-    if 10 not in df.columns: #DO NOT FUCKING TOUCH THIS
-        for i in range(11):
-            if i not in df.columns:
-                df[i] = ""
 
+def split_tire_service(df: pd.DataFrame) -> tuple[list[int], list[int]]:
+    """
+    Separates tire service tasks from general tasks in a DataFrame from a manual input.
+
+    This function applies a complex filter (mask) to a DataFrame to identify rows
+    that correspond to tire-related services based on keywords in specific columns.
+    It assumes a very specific, headerless column structure from a copy-paste operation.
+
+    Args:
+        df (pd.DataFrame): A headerless DataFrame where columns are indexed numerically.
+                           It's expected to have specific data at columns 0, 6, and 10.
+
+    Returns:
+        tuple[list[int], list[int]]: A tuple containing two lists of sequence numbers (integers):
+                                     - The first list is for tire services.
+                                     - The second list is for general services.
+    """
+    # This function is brittle and depends on a fixed (and unusual) column structure.
+    # The comments below document the assumptions made from the original code.
+
+    # Ensure required columns exist, filling with empty strings if not, to prevent KeyErrors.
+    for i in [0, 6, 10]:
+        if i not in df.columns:
+            df[i] = ""
+    
     df[10] = df[10].astype(str)
     df[6] = df[6].astype(str)
+    df[0] = df[0].astype(str)
 
-    column_2_is_nan = df[2].isna().all()
-    if column_2_is_nan:
-        df.drop(2, axis=1, inplace=True)
-        df[10] = df[10].astype(str)
-        df[6] = df[6].astype(str)
-        df.rename(columns={10:14, 12:10, 6:2, 8:6, 7:8}, inplace=True)
-
+    # Heuristic mask to identify tire-related services based on keywords.
     tire_service_mask = (
-    (df[6].str.contains("Verificar integridade das rodas", case=False, na=False))|
-    (df[10].str.strip().isin(["Roda", "Pneu"])) & 
-    (~df[6].str.contains("Verificar integridade|Verificar a integridade|suspensões|Sistema de freio", case=False, na=False))&
-    (~df[6].str.contains("Quando houver espaçador, retirar rodas", case=False, na=False))|
-    (df[6].str.contains("pneus|pneu|verificar torque das porcas das rodas.", case=False, na=False)) &
-    (~df[6].str.contains("pneum", case=False, na=False))|
-    (df[6].str.contains("borracharia", case=False, na=False)) & 
-    (~df[6].str.contains("Verificar integridade|Verificar a integridade", case=False, na=False))
+        (df[6].str.contains("Verificar integridade das rodas", case=False, na=False)) |
+        (df[10].str.strip().isin(["Roda", "Pneu"])) &
+        (~df[6].str.contains("Verificar integridade|Verificar a integridade|suspensões|Sistema de freio", case=False, na=False)) &
+        (~df[6].str.contains("Quando houver espaçador, retirar rodas", case=False, na=False)) |
+        (df[6].str.contains("pneus|pneu|verificar torque das porcas das rodas.", case=False, na=False)) &
+        (~df[6].str.contains("pneum", case=False, na=False)) |
+        (df[6].str.contains("borracharia", case=False, na=False)) &
+        (~df[6].str.contains("Verificar integridade|Verificar a integridade", case=False, na=False))
     )
     
-    pending_service_mask= ( #filters for pending services so we can save up resources 
-    df[0].str.strip() == "N"
-    )
+    # Filter for services marked as pending ('N').
+    pending_service_mask = (df[0].str.strip() == "N")
 
-    tire_service = df[tire_service_mask & pending_service_mask].copy()
-    general = df[(~tire_service_mask) & pending_service_mask].copy()
+    # Apply masks to get the final lists of sequence numbers.
+    tire_service_df = df[tire_service_mask & pending_service_mask]
+    general_service_df = df[(~tire_service_mask) & pending_service_mask]
 
-    tire_service = tire_service["index"].tolist()
-    general = general["index"].tolist()
+    tire_service_sequences = tire_service_df["index"].tolist()
+    general_service_sequences = general_service_df["index"].tolist()
     
-    return tire_service, general
+    return tire_service_sequences, general_service_sequences
 
-def split_auto_tire_service(df: pd)-> tuple: #Same as above but works for auto logs generation
+
+def split_auto_tire_service(df: pd.DataFrame) -> tuple[list[int], list[int]]:
+    """
+    Separates tire service tasks from general tasks in a DataFrame from `fetch_plans`.
+
+    This function is similar to `split_tire_service` but operates on a structured
+    DataFrame with named columns ('de_sub_sist', 'de_tarefa') as returned by `fetch_plans`.
+
+    Args:
+        df (pd.DataFrame): The DataFrame with maintenance tasks.
+
+    Returns:
+        tuple[list[int], list[int]]: A tuple containing two lists of sequence numbers ('no_seq'):
+                                     - The first list is for tire services.
+                                     - The second list is for general services.
+    """
+    # Ensure columns exist and have the correct type for string operations.
     df["de_sub_sist"] = df["de_sub_sist"].astype(str)
     df["de_tarefa"] = df["de_tarefa"].astype(str)
+
+    # Heuristic mask to identify tire-related services based on keywords.
     tire_service_mask = (
-    (df["de_sub_sist"].str.strip().isin(["Roda", "Pneu"])) & 
-    (~df["de_tarefa"].str.contains("Verificar integridade|Verificar a integridade", case=False, na=False))&
-    (~df["de_tarefa"].str.contains("Quando houver espaçador, retirar rodas", case=False, na=False))|
-    (df["de_tarefa"].str.contains("pneus|pneu", case=False, na=False)) &
-    (~df["de_tarefa"].str.contains("pneum", case=False, na=False))|
-    (df["de_tarefa"].str.contains("borracharia", case=False, na=False)) & 
-    (~df["de_tarefa"].str.contains("Verificar integridade|Verificar a integridade", case=False, na=False))
+        (df["de_sub_sist"].str.strip().isin(["Roda", "Pneu"])) &
+        (~df["de_tarefa"].str.contains("Verificar integridade|Verificar a integridade", case=False, na=False)) &
+        (~df["de_tarefa"].str.contains("Quando houver espaçador, retirar rodas", case=False, na=False)) |
+        (df["de_tarefa"].str.contains("pneus|pneu", case=False, na=False)) &
+        (~df["de_tarefa"].str.contains("pneum", case=False, na=False)) |
+        (df["de_tarefa"].str.contains("borracharia", case=False, na=False)) &
+        (~df["de_tarefa"].str.contains("Verificar integridade|Verificar a integridade", case=False, na=False))
     )
     
-    tire_service = df[tire_service_mask].copy()
-    general = df[~tire_service_mask].copy()
+    tire_service_df = df[tire_service_mask]
+    general_service_df = df[~tire_service_mask]
     
-    tire_service = tire_service["no_seq"].tolist()
-    general = general["no_seq"].tolist()
+    tire_service_sequences = tire_service_df["no_seq"].tolist()
+    general_service_sequences = general_service_df["no_seq"].tolist()
     
-    return tire_service, general
+    return tire_service_sequences, general_service_sequences
