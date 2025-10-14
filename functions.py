@@ -211,18 +211,36 @@ def work_logs(service_order: str, interval_str: str, date: str, starting_time: s
         total_interval = list(range(start, end + 1))
     except (ValueError, AttributeError):
         # Case 2: Space or newline separated values, possibly with ranges mixed in.
-        cleaned_interval_str = interval_str.strip()
-        if " " in cleaned_interval_str or "\n" in cleaned_interval_str:
-            items = re.split(r'[\s\n]+', cleaned_interval_str)
-            for item in items:
-                if "-" in item:
-                    s, e = map(int, item.split("-"))
-                    total_interval.extend(list(range(s, e + 1)))
-                elif item:
-                    total_interval.append(int(item))
-        else:
-            messagebox.showwarning("Atenção", "Insira um intervalo de sequência válido.")
-            return
+        try:
+            cleaned_interval_str = interval_str.strip()
+            if " " in cleaned_interval_str or "\n" in cleaned_interval_str:
+                items = re.split(r'[\s\n]+', cleaned_interval_str)
+                for item in items:
+                    if "-" in item:
+                        s, e = map(int, item.split("-"))
+                        total_interval.extend(list(range(s, e + 1)))
+                    elif item:
+                        total_interval.append(int(item))
+            else:
+                messagebox.showwarning("Atenção", "Insira um intervalo de sequência válido.")
+                return
+        #Case 3: interval copied and pasted from an external software, in the following pattern:
+        #N	S		15	15	1	11	Engraxar / Lubrificar	Lubrifcar os pontos de graxa (quinta-roda, catracas, rala, etc).
+        # 2400	Lab.Lub / Comboio	2402	Lubrificação	999396	Graxa	
+        except ValueError:
+            df = pd.read_csv(StringIO(interval_str), sep="\t", header=None, engine="python")
+            df = df.reset_index()
+            df["index"] = df["index"] + 1
+            tire_service, general = split_tire_service(df)
+
+            if choice == "tire_service":
+                if not tire_service:
+                    messagebox.showwarning("Atenção", "Essa ordem de serviço não possui serviços de borracharia.")
+                    return
+                else:
+                    total_interval = [str(x) for x in tire_service]
+            else:
+                total_interval = [str(x) for x in general]
 
     if not total_interval:
         messagebox.showwarning("Atenção", "Nenhuma sequência válida encontrada no intervalo.")
@@ -468,25 +486,30 @@ def split_tire_service(df: pd.DataFrame) -> tuple[list[int], list[int]]:
     # This function is brittle and depends on a fixed (and unusual) column structure.
     # The comments below document the assumptions made from the original code.
 
-    # Ensure required columns exist, filling with empty strings if not, to prevent KeyErrors.
-    for i in [0, 6, 10]:
-        if i not in df.columns:
-            df[i] = ""
-    
-    df[10] = df[10].astype(str)
-    df[6] = df[6].astype(str)
-    df[0] = df[0].astype(str)
+    # Ensure required columns exists in the desired format.
+    if df[2].isna().all():
+        df = df.drop(columns=[2, 5])
+        df.columns = ["index", 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+        df[10] = df[10].astype(str)
+        df[6] = df[6].astype(str)
+        df[0] = df[0].astype(str)
+    else:  
+        df[10] = df[10].astype(str)
+        df[6] = df[6].astype(str)
+        df[0] = df[0].astype(str)
+    pd.set_option("display.max_columns", None)
+    print(df)
 
     # Heuristic mask to identify tire-related services based on keywords.
     tire_service_mask = (
-        (df[6].str.contains("Verificar integridade das rodas", case=False, na=False)) |
         (df[10].str.strip().isin(["Roda", "Pneu"])) &
         (~df[6].str.contains("Verificar integridade|Verificar a integridade|suspensões|Sistema de freio", case=False, na=False)) &
         (~df[6].str.contains("Quando houver espaçador, retirar rodas", case=False, na=False)) |
         (df[6].str.contains("pneus|pneu|verificar torque das porcas das rodas.", case=False, na=False)) &
         (~df[6].str.contains("pneum", case=False, na=False)) |
         (df[6].str.contains("borracharia", case=False, na=False)) &
-        (~df[6].str.contains("Verificar integridade|Verificar a integridade", case=False, na=False))
+        (~df[6].str.contains("Verificar integridade|Verificar a integridade", case=False, na=False))|
+        (df[6].str.contains(r"Verificar a integridade \(trincas, desgastes acentuados, danos críticos\) dos espelhos da roda|Verificar integridade \(trincas, desgastes acentuados, danos críticos\) dos espelhos da roda", case=False, na=False)) 
     )
     
     # Filter for services marked as pending ('N').
@@ -499,6 +522,7 @@ def split_tire_service(df: pd.DataFrame) -> tuple[list[int], list[int]]:
     tire_service_sequences = tire_service_df["index"].tolist()
     general_service_sequences = general_service_df["index"].tolist()
     
+    print(tire_service_sequences, general_service_sequences)
     return tire_service_sequences, general_service_sequences
 
 
@@ -523,13 +547,15 @@ def split_auto_tire_service(df: pd.DataFrame) -> tuple[list[int], list[int]]:
 
     # Heuristic mask to identify tire-related services based on keywords.
     tire_service_mask = (
+        (df["de_sub_sist"].str.contains(r"Verificar a integridade \(trincas, desgastes acentuados, danos críticos\) dos espelhos da roda|Verificar integridade \(trincas, desgastes acentuados, danos críticos\) dos espelhos da roda", case=False, na=False))|
         (df["de_sub_sist"].str.strip().isin(["Roda", "Pneu"])) &
         (~df["de_tarefa"].str.contains("Verificar integridade|Verificar a integridade", case=False, na=False)) &
         (~df["de_tarefa"].str.contains("Quando houver espaçador, retirar rodas", case=False, na=False)) |
         (df["de_tarefa"].str.contains("pneus|pneu", case=False, na=False)) &
         (~df["de_tarefa"].str.contains("pneum", case=False, na=False)) |
         (df["de_tarefa"].str.contains("borracharia", case=False, na=False)) &
-        (~df["de_tarefa"].str.contains("Verificar integridade|Verificar a integridade", case=False, na=False))
+        (~df["de_tarefa"].str.contains("Verificar integridade|Verificar a integridade", case=False, na=False))|
+        (df["de_tarefa"].str.contains(r"Verificar a integridade \(trincas, desgastes acentuados, danos críticos\) dos espelhos da roda|Verificar integridade \(trincas, desgastes acentuados, danos críticos\) dos espelhos da roda", case=False, na=False)) 
     )
     
     tire_service_df = df[tire_service_mask]
