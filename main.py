@@ -107,7 +107,6 @@ class App:
     def run_work_logs(self, plan_type: str = "") -> None:
         """
         Handles the logic for the manual work log generation screen.
-
         It retrieves user input from the UI, calls the `work_logs` function
         from the logic module, and displays the result in the output widget.
 
