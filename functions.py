@@ -502,14 +502,15 @@ def split_tire_service(df: pd.DataFrame) -> tuple[list[int], list[int]]:
 
     # Heuristic mask to identify tire-related services based on keywords.
     tire_service_mask = (
-        (df[10].str.strip().isin(["Roda", "Pneu"])) &
-        (~df[6].str.contains("Verificar integridade|Verificar a integridade|suspensões|Sistema de freio", case=False, na=False)) &
+        (df[10].str.strip().isin(["Roda", "Pneu"]))& 
+        (~df[6].str.contains("Verificar a integridade|suspensões|Sistema de freio|Verificar guias|Verificar porca e parafuso das rodas", case=False, na=False)) &
         (~df[6].str.contains("Quando houver espaçador, retirar rodas", case=False, na=False)) |
-        (df[6].str.contains("pneus|pneu|verificar torque das porcas das rodas.", case=False, na=False)) &
+        (df[6].str.contains("Verificar a integridade (trincas", regex=False))|
+        (df[6].str.contains("pneus|pneu|verificar torque das porcas das rodas.", case=False, na=False, regex=False)) &
         (~df[6].str.contains("pneum", case=False, na=False)) |
         (df[6].str.contains("borracharia", case=False, na=False)) &
         (~df[6].str.contains("Verificar integridade|Verificar a integridade", case=False, na=False))|
-        (df[6].str.contains(r"Verificar a integridade \(trincas, desgastes acentuados, danos críticos\) dos espelhos da roda|Verificar integridade \(trincas, desgastes acentuados, danos críticos\) dos espelhos da roda", case=False, na=False)) 
+        (df[6].str.contains("Verificar a integridade (trincas, desgastes acentuados, danos críticos) dos espelhos da roda|Verificar integridade (trincas, desgastes acentuados, danos críticos) dos espelhos da roda", case=False, na=False, regex=False)) 
     )
     
     # Filter for services marked as pending ('N').
