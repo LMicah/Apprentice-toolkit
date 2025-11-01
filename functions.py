@@ -156,56 +156,10 @@ def time_str_to_decimal(time_str: str) -> float:
     return hours + minutes / 60
 
 
-def work_logs(service_order: str, interval_str: str, date: str, starting_time: str, ending_time: str, choice: str = "") -> str:
-    """
-    Generates formatted work log entries for a given time period and sequence intervals.
-
-    The function parses sequence intervals from various formats (e.g., "1-5", "1 2 3",
-    or newline-separated values). It then divides the total time available equally
-    among the sequences and generates a tab-separated string for each log entry.
-
-    Args:
-        service_order (str): The service order number.
-        interval_str (str): A string containing sequence numbers. Can be a range ("1-5"),
-                            space-separated ("1 2 3"), or newline-separated.
-        date (str): The date for the logs, expected in "dd/mm/yyyy" format.
-        starting_time (str): The start time for the logs, in "hh:mm" format.
-        ending_time (str): The end time for the logs, in "hh:mm" format.
-        choice (str, optional): An optional flag, typically "tire_service", to handle
-                                specific processing logic if needed. Defaults to "".
-
-    Returns:
-        str: A formatted string containing all generated work log entries, separated by newlines,
-             or None if an error occurs.
-    """
-    # --- Input Validation and Sanitization ---
-    date_pattern = r"^(\d{2})[\/]?(\d{2})[\/]?(\d{4})$"
-    time_pattern = r"^(\d{2})[\:]?(\d{2})$"
-
-    if not service_order:
-        messagebox.showwarning("Atenção", "Por favor, insira uma ordem de serviço")
-        return
-
-    service_order = service_order.strip()
-
-    r_date = re.search(date_pattern, date.strip())
-    s_time = re.search(time_pattern, starting_time.strip())
-    e_time = re.search(time_pattern, ending_time.strip())
-
-    if not r_date:
-        messagebox.showwarning("Atenção", "Por favor, insira uma data válida.")
-        return
-    if not s_time or not e_time:
-        messagebox.showwarning("Atenção", "Por favor, insira um intervalo de tempo válido.")
-        return
-
-    # Reformat date to ensure it has slashes for consistency.
-    day, month, year = r_date.groups()
-    date = f"{day}/{month}/{year}"
-
-    # --- Interval Parsing ---
-    total_interval = []
+def _parse_interval(interval_str: str, choice: str = "") -> list:
+    """Parses interval strings from various formats into a list of sequences."""
     interval_str = interval_str.replace('"', '')
+    total_interval = []
     try:
         # Case 1: Simple range format, e.g., "1-5"
         start, end = map(int, interval_str.split("-"))
@@ -223,11 +177,8 @@ def work_logs(service_order: str, interval_str: str, date: str, starting_time: s
                     elif item:
                         total_interval.append(int(item))
             else:
-                messagebox.showwarning("Atenção", "Insira um intervalo de sequência válido.")
-                return
-        #Case 3: interval copied and pasted from an external software, in the following pattern:
-        #N	S		15	15	1	11	Engraxar / Lubrificar	Lubrifcar os pontos de graxa (quinta-roda, catracas, rala, etc).
-        # 2400	Lab.Lub / Comboio	2402	Lubrificação	999396	Graxa
+                raise ValueError("Insira um intervalo de sequência válido.")
+        # Case 3: Tab-separated data from external software
         except ValueError:
             df = pd.read_csv(StringIO(interval_str), sep="\t", header=None, engine="python")
             df = df.reset_index()
@@ -236,16 +187,46 @@ def work_logs(service_order: str, interval_str: str, date: str, starting_time: s
 
             if choice == "tire_service":
                 if not tire_service:
-                    messagebox.showwarning("Atenção", "Essa ordem de serviço não possui serviços de borracharia.")
-                    return
+                    raise ValueError("Essa ordem de serviço não possui serviços de borracharia.")
                 else:
                     total_interval = [str(x) for x in tire_service]
             else:
                 total_interval = [str(x) for x in general]
 
     if not total_interval:
-        messagebox.showwarning("Atenção", "Nenhuma sequência válida encontrada no intervalo.")
-        return
+        raise ValueError("Nenhuma sequência válida encontrada no intervalo.")
+
+    return total_interval
+
+
+def work_logs(service_order: str, interval_str: str, date: str, starting_time: str, ending_time: str, choice: str = "") -> str:
+    """
+    Generates formatted work log entries for a given time period and sequence intervals.
+    """
+    # --- Input Validation and Sanitization ---
+    date_pattern = r"^(\d{2})[\/]?(\d{2})[\/]?(\d{4})$"
+    time_pattern = r"^(\d{2})[\:]?(\d{2})$"
+
+    if not service_order:
+        raise ValueError("Por favor, insira uma ordem de serviço")
+
+    service_order = service_order.strip()
+
+    r_date = re.search(date_pattern, date.strip())
+    s_time = re.search(time_pattern, starting_time.strip())
+    e_time = re.search(time_pattern, ending_time.strip())
+
+    if not r_date:
+        raise ValueError("Por favor, insira uma data válida.")
+    if not s_time or not e_time:
+        raise ValueError("Por favor, insira um intervalo de tempo válido.")
+
+    # Reformat date to ensure it has slashes for consistency.
+    day, month, year = r_date.groups()
+    date = f"{day}/{month}/{year}"
+
+    # --- Interval Parsing ---
+    total_interval = _parse_interval(interval_str, choice)
 
     # --- Time Calculation ---
     starting_hours, starting_minutes = map(int, s_time.groups())
@@ -254,19 +235,15 @@ def work_logs(service_order: str, interval_str: str, date: str, starting_time: s
     total_minutes_available = (ending_hours - starting_hours) * 60 + (ending_minutes - starting_minutes)
 
     if total_minutes_available < 0:
-        messagebox.showwarning("Atenção", "Conserte o horário inserido e pare de fazer cagada!.")
-        return
+        raise ValueError("Conserte o horário inserido e pare de fazer cagada!.")
 
     try:
         time_per_interval = total_minutes_available / len(total_interval)
     except ZeroDivisionError:
-        messagebox.showwarning("Atenção", "O intervalo de sequências não pode estar vazio.")
-        return
+        raise ValueError("O intervalo de sequências não pode estar vazio.")
 
     if time_per_interval < 1:
-        messagebox.showwarning("Atenção", "O tempo mínimo necessário para cada sequência é de um minuto, " \
-      "por favor, aumente o intervalo de tempo ou diminua a quantidade de sequências.")
-        return
+        raise ValueError("O tempo mínimo necessário para cada sequência é de um minuto, por favor, aumente o intervalo de tempo ou diminua a quantidade de sequências.")
 
     # --- Log Generation ---
     output_text = ""
