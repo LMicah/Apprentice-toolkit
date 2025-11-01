@@ -115,19 +115,21 @@ class App:
                                        Passed directly to the `work_logs` function.
                                        Defaults to "".
         """
-        logs = work_logs(
-            self.manual_wlog_order.get(),
-            self.wlog_interval_input.get("1.0", tk.END),
-            self.manual_wlog_date.get(),
-            self.manual_wlog_start.get(),
-            self.manual_wlog_end.get(),
-            plan_type
-        )
-        self.manual_wlog_output.delete("1.0", tk.END)
-        # Ensure 'logs' is not None before inserting to avoid errors.
-        if logs:
-            self.manual_wlog_output.insert(tk.END, logs)
-            
+        try:
+            logs = work_logs(
+                self.manual_wlog_order.get(),
+                self.wlog_interval_input.get("1.0", tk.END),
+                self.manual_wlog_date.get(),
+                self.manual_wlog_start.get(),
+                self.manual_wlog_end.get(),
+                plan_type
+            )
+            self.manual_wlog_output.delete("1.0", tk.END)
+            if logs:
+                self.manual_wlog_output.insert(tk.END, logs)
+        except ValueError as e:
+            messagebox.showwarning("Atenção", str(e))
+
     def run_auto_work_logs(self, plan_type: str = "") -> None:
         """
         Handles the logic for the automatic work log generation screen.
@@ -151,7 +153,7 @@ class App:
             messagebox.showwarning("Atenção!", "Ordem de serviço não encontrada!")
             self.wlog_output.delete("1.0", tk.END)
             return
-        
+
         # Fetch the maintenance tasks based on equipment and plan.
         df_filtered = fetch_plans(equipment, plan)
 
@@ -170,12 +172,13 @@ class App:
         interval_str = " ".join(str(i) for i in interval_list)
 
         # Call the core logic function to generate logs.
-        logs = work_logs(os_number, interval_str, date, start_time, end_time)
-
-        # Display the generated logs in the output widget.
-        self.wlog_output.delete("1.0", tk.END)
-        if logs:
-            self.wlog_output.insert(tk.END, logs)
+        try:
+            logs = work_logs(os_number, interval_str, date, start_time, end_time)
+            self.wlog_output.delete("1.0", tk.END)
+            if logs:
+                self.wlog_output.insert(tk.END, logs)
+        except ValueError as e:
+            messagebox.showwarning("Atenção", str(e))
 
     def clear_fields(self, *widgets) -> None:
         """
@@ -244,7 +247,7 @@ class App:
         ttk.Button(
             frame,
             text="Consulta filtros x frota",
-            style="Grande.TButton", 
+            style="Grande.TButton",
             command=lambda: self.show_frame(self.filters_frame),
         ).pack(pady=20, ipadx=66, ipady=8)
 
@@ -321,7 +324,7 @@ class App:
         ttk.Label(frame, text="""O que deseja unir?\n\nSe o campo "Manter espaços" estiver marcado, o separador será aplicado apenas nas quebras\nde linha, caso contrário, nos espaços também.""").pack(padx=10, pady=10)
         self.ptext_input = tk.Text(frame, height=6, width=100, bg="#3c3f41", fg="#ffffff", font=("Consolas", 12))
         self.ptext_input.pack(padx=10, pady=10)
-        
+
         ttk.Label(frame, text="Separador (por padrão virgula e espaço, se precisar altere para somente virgula.):").pack(padx=10, pady=(5, 0))
         self.ptext_separator = ttk.Entry(frame, width=10)
         self.ptext_separator.pack(padx=10, pady=5)
@@ -395,7 +398,7 @@ class App:
         self.manual_wlog_order.pack(padx=10, pady=5)
 
         ttk.Label(frame, text="Insira o intervalo de sequências (e.g., 1-5 or one per line):").pack(padx=10, pady=5)
-        
+
         # A dedicated sub-frame for the interval input and its clear button.
         frame_interval = tk.Frame(frame, bg="#2b2b2b")
         frame_interval.pack(pady=5)
@@ -425,7 +428,7 @@ class App:
         ttk.Label(frame, text="Apontamentos:").pack(padx=10, pady=5)
         self.manual_wlog_output = tk.Text(frame, height=5, width=100, bg="#3c3f41", fg="#00ff00", font=("Consolas", 12))
         self.manual_wlog_output.pack(padx=10, pady=10)
-        
+
         ttk.Button(frame, text="📋 Copiar apontamentos", command=lambda: copy_text(self.manual_wlog_output, self.root), style="Grande.TButton").pack(pady=5)
         ttk.Button(
             frame, text="⬅ Voltar ao menu",
@@ -433,7 +436,7 @@ class App:
         ).pack(pady=10)
 
         return frame
-    
+
     def create_autoWorkLogs_frame(self) -> tk.Frame:
         """
         Builds and returns the frame for AUTOMATIC work log generation.
@@ -469,7 +472,7 @@ class App:
         button_frame.pack(pady=10)
         ttk.Button(button_frame, text="Serviço geral", command=self.run_auto_work_logs, style="Grande.TButton").pack(side="left", pady=10)
         ttk.Button(button_frame, text="Borracharia", command=lambda: self.run_auto_work_logs("tire_service"), style="Grande.TButton").pack(side="left", padx=30, pady=10)
-        
+
         # Output and navigation
         ttk.Label(frame, text="Apontamentos:").pack(padx=10, pady=5)
         self.wlog_output = tk.Text(frame, height=5, width=100, bg="#3c3f41", fg="#00ff00", font=("Consolas", 12))
@@ -540,7 +543,7 @@ class App:
         frame.place(relwidth=1, relheight=1)
 
         tk.Label(frame, text="Confira o que mudou desde a última versão: ", bg="#2b2b2b", fg="#a20290", font=("Segoe UI", 15, "bold")).pack(padx=10, pady=50)
-        
+
         # Hardcoded changelog text. Will change soon.
         changelog_text = """
 - 🛠️ Adicionado suporte a multiplos intervalos para a geração de apontamentos.
@@ -559,7 +562,7 @@ class App:
     def run_filters_search(self) -> None:
         """
         Handles the logic for the "Consulta filtros x frota" screen.
-        
+
         It gets the equipment fleet number from the user, validates it,
         fetches the corresponding items using an external function,
         and displays the results in a formatted Text widget with alternating row colors.
@@ -575,14 +578,14 @@ class App:
 
         # Fetch data using the logic function.
         itens_result_df = get_equipment_items(choice)
-        
+
         # Check if the function returned a valid DataFrame.
         if itens_result_df is None or itens_result_df.empty:
             self.filters_output.config(state="normal")
             self.filters_output.delete("1.0", tk.END)
             self.filters_output.config(state="disabled")
             return
-            
+
         itens_result_str = itens_result_df.to_string(index=False)
         itens_rows = itens_result_str.strip().split("\n")
 
@@ -621,7 +624,7 @@ class App:
         label.pack(pady=20)
         self.equipment_to_use = ttk.Entry(frame, width=25)
         self.equipment_to_use.pack(pady=0)
-        
+
         # Output widget
         self.filters_output = tk.Text(
             frame, height=27, width=120, bg="#3c3f41", font=("Consolas", 12),
@@ -634,7 +637,7 @@ class App:
         self.filters_output.tag_configure("first_row", background="#2b2b2b", foreground="#da46f4", font=("Consolas", 11))
         self.filters_output.tag_configure("odd_row", background="#3c3f41", foreground="#ffffff", font=("Consolas", 11))
         self.filters_output.tag_configure("even_row", background="#2b2b2b", foreground="#ffffff", font=("Consolas", 11))
-        self.filters_output.tag_raise("sel") 
+        self.filters_output.tag_raise("sel")
 
         # Action and navigation buttons
         ttk.Button(frame, text="Procurar", command=self.run_filters_search).pack(pady=10)
@@ -643,9 +646,9 @@ class App:
 
         # Bind the Enter key to the search action for better UX.
         self.equipment_to_use.bind("<Return>", lambda event: self.run_filters_search())
-        
+
         return frame
-    
+
 # --- Main Execution Block ---
 if __name__ == "__main__":
     """

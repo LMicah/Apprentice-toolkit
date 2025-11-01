@@ -1,6 +1,7 @@
 import pandas as pd
 from io import StringIO
-from functions import split_tire_service
+from functions import split_tire_service, work_logs
+from unittest.mock import MagicMock
 
 # Test data provided by the user
 data1 = """N	S		15	15	1	11	Engraxar / Lubrificar	Lubrifcar os pontos de graxa (quinta-roda, catracas, rala, etc).	2400	Lab.Lub / Comboio	2402	Lubrificação	999396	Graxa
@@ -80,3 +81,30 @@ def test_split_tire_service_data3():
     tire_services, general_services = split_tire_service(df)
     expected_tire_services = []
     assert sorted(tire_services) == sorted(expected_tire_services)
+
+
+def test_work_logs_success():
+    expected_output = (
+        "62112345\t\t\t1\t\t\t\t\t\t\t\t\t\t01/01/2025\t08:00\t01/01/2025\t08:12\t0,20\n"
+        "62112345\t\t\t2\t\t\t\t\t\t\t\t\t\t01/01/2025\t08:12\t01/01/2025\t08:24\t0,20\n"
+        "62112345\t\t\t3\t\t\t\t\t\t\t\t\t\t01/01/2025\t08:24\t01/01/2025\t08:36\t0,20\n"
+        "62112345\t\t\t4\t\t\t\t\t\t\t\t\t\t01/01/2025\t08:36\t01/01/2025\t08:48\t0,20\n"
+        "62112345\t\t\t5\t\t\t\t\t\t\t\t\t\t01/01/2025\t08:48\t01/01/2025\t09:00\t0,20\n"
+    )
+    result = work_logs("62112345", "1-5", "01/01/2025", "08:00", "09:00")
+    assert result == expected_output
+
+
+import pytest
+
+def test_work_logs_no_service_order():
+    with pytest.raises(ValueError, match="Por favor, insira uma ordem de serviço"):
+        work_logs("", "1-5", "01/01/2025", "08:00", "09:00")
+
+def test_work_logs_invalid_date():
+    with pytest.raises(ValueError, match="Por favor, insira uma data válida."):
+        work_logs("62112345", "1-5", "invalid-date", "08:00", "09:00")
+
+def test_work_logs_invalid_time():
+    with pytest.raises(ValueError, match="Por favor, insira um intervalo de tempo válido."):
+        work_logs("62112345", "1-5", "01/01/2025", "invalid-time", "09:00")
