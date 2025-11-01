@@ -205,6 +205,7 @@ def work_logs(service_order: str, interval_str: str, date: str, starting_time: s
 
     # --- Interval Parsing ---
     total_interval = []
+    interval_str = interval_str.replace('"', '')
     try:
         # Case 1: Simple range format, e.g., "1-5"
         start, end = map(int, interval_str.split("-"))
