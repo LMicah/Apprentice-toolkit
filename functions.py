@@ -4,6 +4,7 @@ import pandas as pd
 import re
 from io import StringIO
 
+
 def process_orders(input_text: tk.Text, separator_entry: tk.Entry, output_text: tk.Text) -> None:
     """
     Finds all valid service order numbers from an input widget, joins them with a
@@ -35,8 +36,7 @@ def process_orders(input_text: tk.Text, separator_entry: tk.Entry, output_text: 
 
     # If no orders were found, show a warning and exit.
     if not new_orders:
-        messagebox.showwarning("Atenção", "Não existe nenhuma ordem a ser processada")
-        return
+        raise ValueError("Não existe nenhuma ordem a ser processada")
 
     # Clear the output widget and insert the processed orders.
     output_text.delete("1.0", tk.END)
@@ -85,8 +85,7 @@ def process_text(ptext_input: tk.Text, separator_entry: tk.Entry, space_choice: 
         new_text += separator
 
     if not text:
-        messagebox.showwarning("Atenção", "Nenhum texto inserido")
-        return
+        raise ValueError("Nenhum texto inserido")
 
     # Clean up any trailing separator at the end of the final string.
     if new_text.endswith(separator):
@@ -261,8 +260,7 @@ def search_orders(search_input: tk.Text, search_output: tk.Text, number_of_lines
         search_output.insert(tk.END, result)
         number_of_lines_label.config(text=f"Quantidade de ordens encontradas: {len(found_orders)}")
     else:
-        messagebox.showwarning("Atenção", "Nenhuma ordem encontrada")
-        number_of_lines_label.config(text="Quantidade de ordens encontradas: 0")
+        raise ValueError("Nenhuma ordem encontrada")
 
 
 def get_equipment_items(choice: int, bd_filters: pd.DataFrame, stock: pd.DataFrame, itens_prices: pd.DataFrame) -> pd.DataFrame:
@@ -326,7 +324,7 @@ def copy_text(widget: tk.Text, window: tk.Tk) -> None:
         window.clipboard_append(text)
         window.update()
     else:
-        messagebox.showwarning("Atenção", "Nada a ser copiado")
+        raise ValueError("Nada a ser copiado")
 
 
 def get_equipment_and_plan(os_number: str, df_os: pd.DataFrame) -> tuple[str, list] | tuple[bool, bool]:
