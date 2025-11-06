@@ -168,7 +168,11 @@ def _parse_interval(interval_str: str, choice: str = "") -> list:
         # Case 2: Space or newline separated values, possibly with ranges mixed in.
         try:
             cleaned_interval_str = interval_str.strip()
-            if " " in cleaned_interval_str or "\n" in cleaned_interval_str:
+            
+            if len(cleaned_interval_str) == 1 and cleaned_interval_str.isdigit():
+                total_interval = [cleaned_interval_str]
+
+            elif " " in cleaned_interval_str or "\n" in cleaned_interval_str:
                 items = re.split(r'[\s\n]+', cleaned_interval_str)
                 for item in items:
                     if "-" in item:
