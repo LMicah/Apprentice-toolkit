@@ -2,7 +2,7 @@
 
 The **Apprentice Toolkit** was born quite casually: the initial idea was simply to eliminate the need to use Excel’s `TEXTJOIN` formula. At first, it was just a small script to make everyday work easier. But, like every project that solves a real pain point, it started to grow. After receiving positive feedback from colleagues, I realized it could go much further: I began automating other workflows, adding new features, and soon the original name no longer made sense. It might be difficult to understand what this program actually does, since its use cases are extremely specific and niche, but it has truly been helping me a lot recently.
 
-Originally created to be the final project for **CS50P** (and to be honest, it’s not even finished yet). 
+Originally created to be the final project for **CS50P** 
 
 ---
 
